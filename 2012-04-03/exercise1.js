@@ -84,25 +84,6 @@ function log_wall(logstr, nitem, x, xx, y, yy)
 	return nitem+1;
 }
 
-function log_grid(logstr, nitem, x0, x1, y0, y1)
-{
-	if (logstr && (logstr != ""))
-	{
-		if (logstr == "//*")
-		{
-			console.log("// Grid 1x1 from ("+x0+","+y0+") to ("+x1+","+y1+")");
-		}
-		else
-		{
-			console.log(logstr);
-		}
-	}
-	for (y=y0; y<=y1; y++)
-	{
-		nitem = log_xstripe("", nitem, x0, x1, y);
-	}
-	return nitem;
-}
 
 var structitem = 0;
 var y;
@@ -119,16 +100,26 @@ for (y=1; y<=3; y++)
 
 structitem = log_xstripe("//Stripe of big tiles at y==4", structitem, 21, 52, 4);
 
-structitem = log_grid("//*", 21, 5, 47, 9);
+for (y=5; y<=9; y++)
+{
+	structitem = log_xstripe("//Stripe of big tiles at y=="+y, structitem, 21, 47, y);
+}
 
-structitem = log_grid("//*", 1, 10, 47, 15);
+for (y=10; y<=15; y++)
+{
+	structitem = log_xstripe("//Stripe of big tiles at y=="+y, structitem, 1, 47, y);
+}
 
 structitem = log_xstripe("//Stripe of big tiles at y==16", structitem, 1, 39, 16);
 
-structitem = log_grid("//*", 1, 17, 9, 21);
+for (y=17; y<=21; y++)
+{
+	structitem = log_xstripe("//Stripe of big tiles at y=="+y, structitem, 1, 9, y);
+}
 
 structitem = log_wall("//*", structitem, (1-wallT), 7.5, (1-wallT), 1);
 structitem = log_wall("//*", structitem, (1-wallT), 1, (1-wallT), (22+wallT));
+
 
 if (structitem>0)
 {
