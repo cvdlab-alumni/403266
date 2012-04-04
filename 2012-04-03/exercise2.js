@@ -1,5 +1,5 @@
 /* 403266: Fabrizio Andreoli
-** exercise1.js
+** exercise2.js
 */
 
 (function (exports) {
