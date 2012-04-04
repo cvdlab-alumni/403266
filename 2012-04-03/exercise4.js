@@ -1,5 +1,6 @@
 /* 403266: Fabrizio Andreoli
 ** exercise4.js
+** I'am sorry for poor commenting
 */
 
 (function (exports) {
@@ -268,4 +269,4 @@ else
 	console.log("Error no floor3d!!!");
 }
 
-}(this)) // this vale window (variabile globale)
+}(this)) // "this" often is window (global variable)
