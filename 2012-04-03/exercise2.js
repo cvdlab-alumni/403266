@@ -9,8 +9,9 @@ var y;
 var floor3d;
 var poolHeight = -0.1;
 var tileHeight = 0.1;
-
-// The floor is at height = 0
+var tileDrain = 0.02;
+var floorHeight = 1;
+var wallHeight = 2;
 
 function addStruct( s, adding )
 {
@@ -52,17 +53,21 @@ function create_tile(x, y, xx, yy, h)
 	{
 		h = tileHeight;
 	}
-	return T([0,1])([x,y])(SIMPLEX_GRID([[1], [1], [h]]));
+	return T([0,1,2])([x,y,floorHeight])(SIMPLEX_GRID([[1-tileDrain,-tileDrain], [1-tileDrain,-tileDrain], [h]]));
 }
 
 function create_pool(x, y, xx, yy, h)
 {
-	return T([0,1,2])([x,y,(poolHeight-h)])(SIMPLEX_GRID([[(xx-x)], [(yy-y)], [h]]));
+	return T([0,1,2])([x,y,(floorHeight+poolHeight-h)])(SIMPLEX_GRID([[(xx-x)], [(yy-y)], [h]]));
 }
 
 function create_wall(x, y, xx, yy, h)
 {
-	return T([0,1])([x,y])(SIMPLEX_GRID([[(xx-x)], [(yy-y)], [h]]));
+	if ((!h) || ("undefined" == typeof h))
+	{
+		h = wallHeight;
+	}
+	return T([0,1,2])([x,y,floorHeight])(SIMPLEX_GRID([[(xx-x)], [(yy-y)], [h]]));
 }
 
 function create_xstripe(x, y, xx, yy, h)
@@ -70,6 +75,10 @@ function create_xstripe(x, y, xx, yy, h)
 	if ((!yy) || ("undefined" == typeof yy))
 	{
 		yy = y+1;
+	}
+	if ((!h) || ("undefined" == typeof h))
+	{
+		h = tileHeight;
 	}
 	var r = create_tile(x, y, xx, yy, h);
 	if ((x+1)<xx)
@@ -85,6 +94,10 @@ function create_grid1x1(x0, y0, xx, yy, h)
 {
 	if ((x0<xx) && (y0<yy))
 	{
+		if ((!h) || ("undefined" == typeof h))
+		{
+			h = tileHeight;
+		}
 		var f2d = create_xstripe(x0, y0, xx, (y0+1), h); //Stripe of big tiles at y=="+y0
 		for (var y=y0+1; y<=yy; y++)
 		{
