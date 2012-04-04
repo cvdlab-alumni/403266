@@ -40,15 +40,15 @@ function create_tile(x, y, xx, yy)
 	{
 		yy = y+1;
 	}
+	if ((!xx) || ("undefined" == typeof xx))
+	{
+		xx = x+1;
+	}
 	return POLYLINE([[x,y], [xx,y], [xx,yy], [x,yy], [x,y]]);
 }
 
 function create_pool(x, y, xx, yy)
 {
-	if ((!yy) || ("undefined" == typeof yy))
-	{
-		yy = y+1;
-	}
 	return POLYLINE([[x,y], [xx,y], [xx,yy], [x,yy], [x,y]]);
 }
 
@@ -61,7 +61,6 @@ function create_wall(x, y, xx, yy)
 	}
 	return POLYLINE([[x,y], [xx,y], [xx,yy], [x,yy], [x,y]]);
 }
-
 
 function create_xstripe(x, y, xx, yy)
 {
@@ -83,13 +82,11 @@ function create_xstripe(x, y, xx, yy)
 	return r;
 }
 
-
 function create_grid1x1(x0, y0, xx, yy)
 {
 	if ((x0<xx) && (y0<yy))
 	{
 		var f2d = create_xstripe(x0, y0, xx); //Stripe of big tiles at y=="+y0
-		console.log("f2d"+(f2d));
 		for (var y=y0+1; y<=yy; y++)
 		{
 			var stripe = create_xstripe(x0, y, xx); //Stripe of big tiles at y=="+y
@@ -100,31 +97,29 @@ function create_grid1x1(x0, y0, xx, yy)
 		}
 		return f2d;
 	}
-	else
-		console.log("ERR1");
 	return null;
 }
 
-
 floor2d = create_pool(1, 1, 21, 10); // Pool 1
-floor2d = addStruct( floor2d, create_pool(47, 5, 51, 16)); // Pool 2
-floor2d = addStruct( floor2d, create_xstripe(0, 0, 39)); //Stripe of big tiles at y==0
-floor2d = addStruct( floor2d, create_tile(0, 1, 1)); //Tile at (0,1)
+floor2d = addStruct( floor2d, create_pool(47, 5, 51, 16) ); // Pool 2
+floor2d = addStruct( floor2d, create_xstripe(0, 0, 39) ); //Stripe of big tiles at y==0
+floor2d = addStruct( floor2d, create_tile(0, 1) ); //Tile at (0,1)
 
-floor2d = addStruct( floor2d, create_grid1x1(21, 1, 36, 3)); //Grid1x1 at (21,1)
+floor2d = addStruct( floor2d, create_grid1x1(21, 1, 36, 3) ); //Grid1x1 at (21,1)
 
-floor2d = addStruct( floor2d, create_xstripe(21, 4, 52)); //Stripe of big tiles at y==4
+floor2d = addStruct( floor2d, create_xstripe(21, 4, 52) ); //Stripe of big tiles at y==4
 
-floor2d = addStruct( floor2d, create_grid1x1(21, 5, 47, 9)); //Grid1x1 at (21,5)
+floor2d = addStruct( floor2d, create_tile(51, 5) ); //Tile at (51,5)
+floor2d = addStruct( floor2d, create_grid1x1(21, 5, 47, 9) ); //Grid1x1 at (21,5)
 
-floor2d = addStruct( floor2d, create_grid1x1(1, 10, 47, 15)); //Grid1x1 at (1,10)
+floor2d = addStruct( floor2d, create_grid1x1(1, 10, 47, 15) ); //Grid1x1 at (1,10)
 
-floor2d = addStruct( floor2d, create_xstripe(1, 16, 39)); //Stripe of big tiles at y==16
+floor2d = addStruct( floor2d, create_xstripe(1, 16, 39) ); //Stripe of big tiles at y==16
 
-floor2d = addStruct( floor2d, create_grid1x1(1, 17, 9, 21)); //Grid1x1 at (1,17)
+floor2d = addStruct( floor2d, create_grid1x1(1, 17, 9, 21) ); //Grid1x1 at (1,17)
 
-floor2d = addStruct( floor2d, create_wall((1-wallT), (1-wallT), 7.5, 1));
-floor2d = addStruct( floor2d, create_wall((1-wallT), (1-wallT), 1, (22+wallT)));
+floor2d = addStruct( floor2d, create_wall((1-wallT), (1-wallT), 7.5, 1) );
+floor2d = addStruct( floor2d, create_wall((1-wallT), (1-wallT), 1, (22+wallT)) );
 
 exports.floor2d = floor2d;
  
