@@ -5,7 +5,7 @@
 
 (function (exports) {
 
-var wallT = 0.2; // wallThickness
+var wallThickness = 0.2;
 var y;
 var floor2d;
 
@@ -58,7 +58,7 @@ function create_wall(x, y, xx, yy)
 {
 	if ((!yy) || ("undefined" == typeof yy))
 	{
-		yy = y+wallT;
+		yy = y+wallThickness;
 	}
 	return POLYLINE([[x,y], [xx,y], [xx,yy], [x,yy], [x,y]]);
 }
@@ -119,8 +119,8 @@ floor2d = addStruct( floor2d, create_xstripe(1, 16, 39) ); //Stripe of big tiles
 
 floor2d = addStruct( floor2d, create_grid1x1(1, 17, 9, 21) ); //Grid1x1 at (1,17)
 
-floor2d = addStruct( floor2d, create_wall((1-wallT), (1-wallT), 7.5, 1) );
-floor2d = addStruct( floor2d, create_wall((1-wallT), (1-wallT), 1, (22+wallT)) );
+floor2d = addStruct( floor2d, create_wall((1-wallThickness), (1-wallThickness), 7.5, 1) );
+floor2d = addStruct( floor2d, create_wall((1-wallThickness), (1-wallThickness), 1, (22+wallThickness)) );
 
 exports.floor2d = floor2d;
  
