@@ -16,7 +16,7 @@
 	csFuseFront[6] = [[ 0.60, 0.00*3/4, 0.00], [ 0.60, 0.00*3/4, 0.00], [ 0.00, 0.00, 0.00/4], [ 0.00, 0.00, 0.00/4]];
 
 
-	var fuseBaseMapping = function (v) { return [-v[0], v[1]/ Math.sqrt(v[0]+1)/2 - 0.25, v[2] / Math.sqrt(v[0]+1)-0.25]};
+	var fuseBaseMapping = function (v) { return [-v[0], (v[1]-0.5)/ Math.sqrt(v[0]+1)/2, (v[2]-0.25) / Math.sqrt(v[0]+1)]};
 	var fuseBaseModel = CUBOID([5,1,1]);
 	var fuseMapped = MAP(fuseBaseMapping)(fuseBaseModel);
 //	DRAW(fuseMapped);
