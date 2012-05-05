@@ -186,8 +186,18 @@ function BuildAirStrip()
                              COLOR([1,1,1])(T([0,1,2])([-25,8,-2])(CUBOID([50,2,1]))),
                              COLOR([1,1,1])(T([0,1,2])([-25,-10,-2])(CUBOID([50,2,1]))),
                              COLOR([0,0,0])(T([0,1,2])([-25,-8,-2])(CUBOID([50,16,1])))]);
-	/* First attempt: no middle discontiouns line... */
-	return airstrip0;
+
+var a = POLYLINE([[0],[4]]);
+var b = POLYLINE([[0],[1]]);
+var axb = COLOR([1,1,1])(PROD1x1([a,b]));
+
+var whitestrip = T([1,2])([-0.5, -0.99])(axb);
+
+	var airstrip = STRUCT([ airstrip0, T([0])([-6*4])(whitestrip), T([0])([-6*3])(whitestrip),
+							T([0])([-6*2])(whitestrip), T([0])([-6*1])(whitestrip), whitestrip,
+							T([0])([6*1])(whitestrip), T([0])([6*2])(whitestrip), T([0])([6*3])(whitestrip)]);
+	
+	return airstrip;
 }
 
 	var pWing = AA(AA(function(x) { return x*ws }))(pWingSize0);
