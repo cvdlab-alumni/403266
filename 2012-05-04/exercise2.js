@@ -3,37 +3,81 @@
 ** Produce the model of the fuselage (local coordinate system).
 */
 
-var domainFuselage = DOMAIN([[0,1],[0,1]])([30,30]);	// Divide x axis into 15 intervals and y's into 30
+(function (exports) {
 
-var r2 = Math.sqrt(2) / 2;
-var fs = 0.5; // Constant use for size of fuselage
-var lp = 1;
+	csFuseFront = new Array();
 
-/*
-// Half fuselage: a double BEIZER surface will build the fuselage. Note "_nr" stands for (still) not rotated.
-var mapHalfFuselage_nr = [[0,fs,0],[0,fs,fs],[0,-fs,fs],[0,-fs,-fs],[0,0,-fs]];
+	csFuseFront[0] = [[ 0.00, 0.30*3/4, 0.00], [ 0.00,-0.30*3/4, 0.00], [ 0.00, 0.00,-3.50/4], [ 0.00, 0.00, 3.50/4]];
+	csFuseFront[1] = [[ 0.00, 0.40*3/4, 0.00], [ 0.00,-0.40*3/4, 0.00], [ 0.00, 0.00,-4.00/4], [ 0.00, 0.00, 4.00/4]];
+	csFuseFront[2] = [[ 0.20, 0.50*3/4, 0.00], [ 0.20,-0.50*3/4, 0.00], [ 0.00, 0.00,-3.50/4], [ 0.00, 0.00, 3.50/4]];
+	csFuseFront[3] = [[ 0.30, 0.45*3/4, 0.00], [ 0.30,-0.45*3/4, 0.00], [ 0.00, 0.00,-3.00/4], [ 0.00, 0.00, 3.00/4]];
+	csFuseFront[4] = [[ 0.40, 0.25*3/4, 0.00], [ 0.40,-0.25*3/4, 0.00], [ 0.00, 0.00,-2.00/4], [ 0.00, 0.00, 2.00/4]];
+	csFuseFront[5] = [[ 0.50, 0.10*3/4, 0.00], [ 0.50,-0.10*3/4, 0.00], [ 0.00, 0.00,-1.00/4], [ 0.00, 0.00, 1.00/4]];
+	csFuseFront[6] = [[ 0.60, 0.00*3/4, 0.00], [ 0.60, 0.00*3/4, 0.00], [ 0.00, 0.00, 0.00/4], [ 0.00, 0.00, 0.00/4]];
 
-// It have to remap to rotate it by PI/4 rad
-var mapHalfFuselage = mapHalfFuselage_nr.map(function (p) {return [p[0], (p[1]-p[2]) * r2, (p[1]+p[2]) * r2]});
-*/
-// Half fuselage: a double BEIZER surface will build the fuselage.
-var mapHalfFuselage = [[0,fs*r2,fs*r2],[0,0,2*r2*fs],[0,-2*r2*fs,0],[0,0,-2*r2*fs],[0,fs*r2,-fs*r2]];
 
-// mapHalfFuselage "have" the lower part of Fuselage for the y axis: so have to swith y (p[1]) with z axis (p[2]).
-var mapLowerFuselage0 = mapHalfFuselage.map(function (p) {return [p[0]     ,  p[2]     ,  p[1]-fs*0.40     ]});
-var mapLowerFuselage1 = mapHalfFuselage.map(function (p) {return [p[0]-lp  ,  p[2]     ,  p[1]-fs*0.40     ]});
-var mapLowerFuselage2 = mapHalfFuselage.map(function (p) {return [p[0]-lp*2,  p[2]     ,  p[1]-fs*0.40     ]});
-var mapLowerFuselage3 = mapHalfFuselage.map(function (p) {return [p[0]-lp*3, (p[2])*0.7, (p[1]-fs*0.40)*0.9]});
-var mapLowerFuselage4 = mapHalfFuselage.map(function (p) {return [p[0]-lp*4, (p[2])*0.5, (p[1]-fs*0.40)*0.8]});
-var mapLowerFuselage5 = mapHalfFuselage.map(function (p) {return [p[0]-lp*5, (p[2])*0.3, (p[1]-fs*0.40)*0.7]});
+	var fuseBaseMapping = function (v) { return [-v[0], v[1]/ Math.sqrt(v[0]+1)/2 - 0.25, v[2] / Math.sqrt(v[0]+1)-0.25]};
+	var fuseBaseModel = CUBOID([5,1,1]);
+	var fuseMapped = MAP(fuseBaseMapping)(fuseBaseModel);
+//	DRAW(fuseMapped);
 
-var controlsLowerFuselage = AA(BEZIER(S0))([mapLowerFuselage0,mapLowerFuselage1,mapLowerFuselage2,mapLowerFuselage3,mapLowerFuselage4,mapLowerFuselage5]);
-var lowerFuselage = BEZIER(S1)(controlsLowerFuselage);
-var surfLowerFuselage = MAP(lowerFuselage)(domainFuselage);
 
-var surfTopFuselage = S([0,1,2])([1,1,-1])(surfLowerFuselage);
+function BuildSurface(cs, mirrorAxis)
+{
+	// INPUT cs: contains control points for CUBIC_HERMITE(S0)
+	// INPUT mirrorAxis: ignored if < 0
+	// OUTPUT surface built by passed parameters
 
-surfFuselage = STRUCT([surfLowerFuselage, surfTopFuselage]);
+	var domain2D = DOMAIN([[0,1],[0,1]])([30,50]); // Could be passed as parameter, but currently leave the same domain for all surfaces
+	
+	ch = new Array();
+//	curves = new Array();
+	
+//	domain1D = INTERVALS(1)(30);
 
-DRAW(surfFuselage);
-                   
+	for (var i=0; i<cs.length; i++)
+	{
+		ch[i] = CUBIC_HERMITE(S0)(cs[i]);
+//		curves[i]  = MAP(ch[i])(domain1D);
+	}
+
+	var bezierS1Ch = BEZIER(S1)(ch);
+	var surf1 = MAP(bezierS1Ch)(domain2D);
+	if (mirrorAxis>=0)
+	{	// Mirroring on mirrorAxis axis
+		var surf2 = S([mirrorAxis])([-1])(surf1);
+		var surface = STRUCT([surf1,surf2]);
+	
+		return surface;
+	}
+	else
+	{
+		return surf1;
+	}
+}
+
+
+function BuildFuselage(mirrorAxis)
+{
+
+	var front = BuildSurface(csFuseFront, mirrorAxis);
+	
+	return STRUCT([ front, fuseMapped]);
+}
+
+	var surfFuselage = BuildFuselage(2);
+	
+	exports.surfFuselage = surfFuselage;
+
+	if (surfFuselage)
+	{	
+		// DRAW fuselage
+		DRAW(surfFuselage);
+	}
+	else
+	{
+		console.log("Error: no surface surfFuselage!");
+	}
+
+
+}(this)) // "this" often is window (global variable)
