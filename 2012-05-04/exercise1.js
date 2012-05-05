@@ -30,7 +30,7 @@ var surf = MAP(wing)(domainWing);
 
 //Curves bCpW4 and bCpWEnd are used as parameters for BEZIER function.
 //BEZIER is used in transfinite manner: first argument is S1 (not S0),
-//									 	and like second argument the two curves bCpW4 and bCpWEnd.).
+//                                      and second argument are the two curves bCpW4 and bCpWEnd.).
 //Note: two curves can generate a surface.
 var controlsWingEnd = BEZIER(S1)([bCpW4, bCpWEnd]);
 var surfaceWingEnd = MAP(controlsWingEnd)(domainWing);
