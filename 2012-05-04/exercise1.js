@@ -5,17 +5,20 @@
 
 var domainWing = DOMAIN([[0,1],[0,1]])([15,30]);	// Divide 2D domain: x axis into 15 intervals and y's into 30
 
-// Declaration of vertices for BEZIER on xz plane
-var pWing = [[-5,0,-1],[5,0,4],[5,0,-4],[0,0,1],[-5,0,-1]];
+var ws = 0.1; // Constant use for sizing wing
+var lp = 1;
 
-/* Create points for BEZIER(S0) */
-var pWing0 =    pWing.map(function (p) {return [p[0], p[1]-20, p[2]]});
-var pWing1 =    pWing.map(function (p) {return [p[0], p[1]-10, p[2]]});
+// Declaration of vertices for BEZIER on xz plane
+var pWing = [[-5*ws,0,-1*ws],[5*ws,0,4*ws],[5*ws,0,-4*ws],[0,0,1*ws],[-5*ws,0,-1*ws]];
+
+/* Create control points for BEZIER(S0) */
+var pWing0 =    pWing.map(function (p) {return [p[0], p[1]-lp*2, p[2]]});
+var pWing1 =    pWing.map(function (p) {return [p[0], p[1]-lp, p[2]]});
 var pWing2 =    pWing.map(function (p) {return [p[0], p[1]   , p[2]]});
-var pWing3 =    pWing.map(function (p) {return [p[0], p[1]+10, p[2]]});
-var pWing4 =    pWing.map(function (p) {return [p[0], p[1]+20, p[2]]});
-var pWingEnd0 = pWing.map(function (p) {return [0, p[1]-20, 0]});
-var pWingEnd4 = pWing.map(function (p) {return [0, p[1]+20, 0]});
+var pWing3 =    pWing.map(function (p) {return [p[0], p[1]+lp, p[2]]});
+var pWing4 =    pWing.map(function (p) {return [p[0], p[1]+lp*2, p[2]]});
+var pWingEnd0 = pWing.map(function (p) {return [0, p[1]-lp*2, 0]});
+var pWingEnd4 = pWing.map(function (p) {return [0, p[1]+lp*2, 0]});
 
 /* Create control points for BEZIER(S1) */
 var controlWing0 = BEZIER(S0)(pWing0);
