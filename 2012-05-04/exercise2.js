@@ -19,12 +19,12 @@ var mapHalfFuselage = mapHalfFuselage_nr.map(function (p) {return [p[0], (p[1]-p
 var mapHalfFuselage = [[0,fs*r2,fs*r2],[0,0,2*r2*fs],[0,-2*r2*fs,0],[0,0,-2*r2*fs],[0,fs*r2,-fs*r2]];
 
 // mapHalfFuselage "have" the lower part of Fuselage for the y axis: so have to swith y (p[1]) with z axis (p[2]).
-var mapLowerFuselage0 = mapHalfFuselage.map(function (p) {return [p[0]   ,  p[1]-fs*0.40     ,  p[2]     ]});
-var mapLowerFuselage1 = mapHalfFuselage.map(function (p) {return [p[0]-10,  p[1]-fs*0.40     ,  p[2]     ]});
-var mapLowerFuselage2 = mapHalfFuselage.map(function (p) {return [p[0]-20,  p[1]-fs*0.40     ,  p[2]     ]});
-var mapLowerFuselage3 = mapHalfFuselage.map(function (p) {return [p[0]-30, (p[1]-fs*0.40)*0.9, (p[2])*0.7]});
-var mapLowerFuselage4 = mapHalfFuselage.map(function (p) {return [p[0]-40, (p[1]-fs*0.40)*0.8, (p[2])*0.5]});
-var mapLowerFuselage5 = mapHalfFuselage.map(function (p) {return [p[0]-50, (p[1]-fs*0.40)*0.7, (p[2])*0.3]});
+var mapLowerFuselage0 = mapHalfFuselage.map(function (p) {return [p[0]   ,  p[2]     ,  p[1]-fs*0.40     ]});
+var mapLowerFuselage1 = mapHalfFuselage.map(function (p) {return [p[0]-10,  p[2]     ,  p[1]-fs*0.40     ]});
+var mapLowerFuselage2 = mapHalfFuselage.map(function (p) {return [p[0]-20,  p[2]     ,  p[1]-fs*0.40     ]});
+var mapLowerFuselage3 = mapHalfFuselage.map(function (p) {return [p[0]-30, (p[2])*0.7, (p[1]-fs*0.40)*0.9]});
+var mapLowerFuselage4 = mapHalfFuselage.map(function (p) {return [p[0]-40, (p[2])*0.5, (p[1]-fs*0.40)*0.8]});
+var mapLowerFuselage5 = mapHalfFuselage.map(function (p) {return [p[0]-50, (p[2])*0.3, (p[1]-fs*0.40)*0.7]});
 
 // build TopFuselage mirroring LowerFuselage
 var mapTopFuselage0 = mapLowerFuselage0.map(function (p) {return [p[0], -p[1], -p[2]]});

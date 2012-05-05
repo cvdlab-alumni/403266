@@ -3,37 +3,51 @@
 ** Produce the model of a single wing in a local coordinate system.
 */
 
-var domainWing = DOMAIN([[0,1],[0,1]])([15,30]);	// Divide x axis into 15 intervals and y's into 30
+var domainWing = DOMAIN([[0,1],[0,1]])([15,30]);	// Divide 2D domain: x axis into 15 intervals and y's into 30
 
-/* Create control point for BEZIER(S0) */
-var cpWing0 = [[10,0,0],[0,5,0],[0,-3,0],[5,2,0],[10,0,0]];
-var cpWing1 = cpWing0.map(function (p) {return [p[0], p[1], p[2]+10]});
-var cpWing2 = cpWing0.map(function (p) {return [p[0], p[1], p[2]+20]});
-var cpWing3 = cpWing0.map(function (p) {return [p[0], p[1], p[2]+30]});
-var cpWing4 = cpWing0.map(function (p) {return [p[0], p[1], p[2]+40]});
-var cpWingEnd = cpWing4.map(function (p) {return [5, 0.8, p[2]]});
+// Declaration of vertices for BEZIER on xz plane
+var pWing = [[-5,0,-1],[5,0,4],[5,0,-4],[0,0,1],[-5,0,-1]];
 
-var bCpW0 = BEZIER(S0)(cpWing0);
-var bCpW1 = BEZIER(S0)(cpWing1);
-var bCpW2 = BEZIER(S0)(cpWing2);
-var bCpW3 = BEZIER(S0)(cpWing3);
-var bCpW4 = BEZIER(S0)(cpWing4);
+/* Create points for BEZIER(S0) */
+var pWing0 =    pWing.map(function (p) {return [p[0], p[1]-20, p[2]]});
+var pWing1 =    pWing.map(function (p) {return [p[0], p[1]-10, p[2]]});
+var pWing2 =    pWing.map(function (p) {return [p[0], p[1]   , p[2]]});
+var pWing3 =    pWing.map(function (p) {return [p[0], p[1]+10, p[2]]});
+var pWing4 =    pWing.map(function (p) {return [p[0], p[1]+20, p[2]]});
+var pWingEnd0 = pWing.map(function (p) {return [0, p[1]-20, 0]});
+var pWingEnd4 = pWing.map(function (p) {return [0, p[1]+20, 0]});
 
-var bCpWEnd = BEZIER(S0)(cpWingEnd);
+/* Create control points for BEZIER(S1) */
+var controlWing0 = BEZIER(S0)(pWing0);
+var controlWing1 = BEZIER(S0)(pWing1);
+var controlWing2 = BEZIER(S0)(pWing2);
+var controlWing3 = BEZIER(S0)(pWing3);
+var controlWing4 = BEZIER(S0)(pWing4);
+var controlWingEnd0 = BEZIER(S0)(pWingEnd0);
+var controlWingEnd4 = BEZIER(S0)(pWingEnd4);
 
-var controlsWing = [bCpW0,bCpW1,bCpW2,bCpW3,bCpW4]
-// I
-//var controlsWing = AA(BEZIER(S0))([cpWing0,cpWing1,cpWing2,cpWing3,cpWing4]);
+var controlsWing = [controlWing0,controlWing1,controlWing2,controlWing3,controlWing4]
+// Compact form not used, in order to reuse object controlWing0/4 when calculating controlsWingEnd0/4
+//var controlsWing = AA(BEZIER(S0))([pWing0,pWing1,pWing2,pWing3,pWing4]);
 
-var wing = BEZIER(S1)(controlsWing);
-var surf = MAP(wing)(domainWing);
+var centerWing = BEZIER(S1)(controlsWing);
+var surfCenterWing = MAP(centerWing)(domainWing);
 
-//Curves bCpW4 and bCpWEnd are used as parameters for BEZIER function.
+//Curves controlWing0/4 and controlWingEnd0/4 are used as parameters for BEZIER function.
 //BEZIER is used in transfinite manner: first argument is S1 (not S0),
-//                                      and second argument are the two curves bCpW4 and bCpWEnd.).
+//                                      and second argument are the two curves controlWing0/4 and controlWingEnd0/4.
 //Note: two curves can generate a surface.
-var controlsWingEnd = BEZIER(S1)([bCpW4, bCpWEnd]);
-var surfaceWingEnd = MAP(controlsWingEnd)(domainWing);
-DRAW(surfaceWingEnd);
 
-DRAW(surf);
+var controlsWingEnd0 = BEZIER(S1)([controlWing0, controlWingEnd0]);
+var surfWingEnd0 = MAP(controlsWingEnd0)(domainWing);
+//DRAW(surfWingEnd0);
+
+var controlsWingEnd4 = BEZIER(S1)([controlWing4, controlWingEnd4]);
+var surfWingEnd4 = MAP(controlsWingEnd4)(domainWing);
+//DRAW(surfWingEnd4);
+
+// Build wing
+surfWing = STRUCT([surfWingEnd0, surfCenterWing , surfWingEnd4]);
+
+// DRAW wing
+DRAW(surfWing);
