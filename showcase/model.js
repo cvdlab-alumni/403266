@@ -8,11 +8,11 @@
 	 // Sequence of [Y,Z].
 	 // Model a NUBS curve that is rotated on X,Y planes to obtain a 3D object.
 	 // First and last must be Y=0 in order to have a closed object.
-	var cnubs = [[0,0], // [0,0] 
+	var cnubs = [[0,0], // [0,0] in order to have a closed object (at bottom).
 	             [44,0], // To build base, 0 on Z axis.
 	             [44,23],[32,24],[36,25],[39,28],[28,40],[20,58],[17,73],[21,90],[14,95],
 	             [19,101],[24,113],[20,130],[13,138],[8,141], [3,143],
-	             [0,143]]; // 0 on Y to make a close (on top) object
+	             [0,143]]; // 0 on Y to make a closed (on top) object.
 	             // This data was manually taken by sk-scheda-10_html_60264dc2.gif in http://www.guzman.it/schedesketchup/scheda%2010/sk-scheda-10.html
 
 	var scale = 1/44; // Object scale factor. Makes base into [1,1].
