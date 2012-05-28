@@ -21,6 +21,14 @@ var domainScale=1;
  [0, 400] ]; // Closing the top of the king
 	var scaleMagnet = 1/200; // Magnet object scale factor. Makes base into [1,1].
 
+	function myCircle(radius, domain)
+	{
+		var r = radius || 1;
+		var d = domain || DOMAIN([[0,2*PI]])([32]);
+		var mapping = function (v) { return [r*SIN(v[0]), r*COS(v[0]), 0]; };
+		return MAP(mapping)(d);
+	}
+	
 	/* Build3DSurfaceFrom2DCurve() use rz to create one NUBS along Z axis that is
 	** replicated nnubs times over 2*PI/(2^powdivs) degrees (along XY plane) then
 	** generate a BEZIER surface with that nnubs NUBS. Then replicate the BEZIER
@@ -104,34 +112,72 @@ var domainScale=1;
 	var helixTurns = 10;
 	var helixWidth = 1;
 	var wireGap = 1.5;
+	var ampereGenR = 0.5;
 	var ampereGenZ = 5;
 
 	var magnetH = rzMagnetRots[rzMagnetRots.length-1][1] * scaleMagnet;
 	var magnet = T([0,1,2])([barX/2,0.5 + magnet1Y,barZ])(Build3DSurfaceFrom2DCurve(rzMagnetRots, scaleMagnet));
-	var magnet1 = COLOR(whiteColor)( magnet );
-	var magnet2 = COLOR(brownColor)( T([1])([magnet2Y-magnet1Y])(magnet) );
-	var bar2 = CUBOID([barX,barY,barZ]);
+	var magnet1 = COLOR(brownColor)( magnet );
+	var magnet2 = T([1])([magnet2Y-magnet1Y])(magnet1);
+	var bar2 = COLOR(whiteColor)( CUBOID([barX,barY,barZ]) );
 	var bar = T([2])([magnetH+barZ])(bar2);
-	var helix  = T([0,1,2])([barX/2,helixY+helixWidth,barZ/2])(S([2])([barZ/barX])(R([0,2])(PI/2)(R([1,2])(PI/2)(HELIX((barX+barZ)/2,helixWidth/helixTurns,32,helixTurns)))));
+/*	var helix  = T([0,1,2])([barX/2,helixY+helixWidth,barZ/2])(S([2])([barZ/barX])(R([0,2])(PI/2)(R([1,2])(PI/2)(HELIX((barX+barZ)/2,helixWidth/helixTurns,32,helixTurns)))));
 	var helix2 = T([0,1,2]) ([barX/2,helixY,magnetH + barZ*1.5]) (S([2]) ([barZ/barX]) (R([0,2]) (PI/2) (R([1,2]) (PI/2) (HELIX((barX+barZ)/2,-helixWidth/helixTurns,32,helixTurns)) ) ) );
+*/
+	var helix  = T([0,1,2])([barX/2,helixY+helixWidth,magnetH + barZ*1.5])(S([2])([barZ/barX])(R([0,2])(PI/2)(R([1,2])(PI/2)(HELIX((barX+barZ)/2,helixWidth/helixTurns,32,helixTurns)))));
+	var helix2 = T([0,1,2]) ([barX/2,helixY,barZ/2]) (S([2]) ([barZ/barX]) (R([0,2]) (PI/2) (R([1,2]) (PI/2) (HELIX((barX+barZ)/2,-helixWidth/helixTurns,32,helixTurns)) ) ) );
+
 	var wire1 = POLYLINE([[barX+barZ/2,helixY,barZ/2],[barX+barZ/2,helixY,barZ/2 + magnetH + barZ]]);
 	var wire2 = POLYLINE([[barX+barZ/2,helixY + helixWidth,barZ/2 + magnetH + barZ],
 	                  [barX+barZ/2,helixY + helixWidth,ampereGenZ]]);
 	var wire3 = POLYLINE([[barX+barZ/2,helixY + helixWidth,barZ/2],
 	                  [barX+barZ/2,helixY + helixWidth + wireGap,barZ/2],
-	                  [barX+barZ/2,helixY + helixWidth + wireGap,ampereGenZ]]);
+	                  [barX+barZ/2,helixY + helixWidth + wireGap,ampereGenZ],
+	                  [barX+barZ/2,helixY + helixWidth,ampereGenZ]]);
 	var moveBar1 = T([1])([-barZ-moveBarGap])(CUBOID([barX, barZ, barZ*2 + magnetH]));
 	var moveBar2 = T([1])([barY+moveBarGap])(CUBOID([barX, barZ, barZ*2 + magnetH]));
 
 	// Want to model a current generator
-	var circle = T([0,1,2])([barX+barZ/2,helixY + helixWidth + wireGap,ampereGenZ])(CIRCLE(0.5)())
+	var circle = T([0,1,2])([barX+barZ/2,helixY+helixWidth+wireGap/2,ampereGenZ])(R([0,2])(PI/2)(myCircle(ampereGenR)))
 
 	var model = STRUCT([magnet1, magnet2, bar, bar2, helix, helix2, wire1, wire2, wire3, moveBar1, moveBar2, circle]);
-
-	// 
 
 	exports.m =  model;
 
 	DRAW(model);
 			
 }(this)) // "this" often is window (global variable)
+/* issue!
+
+var domain = DOMAIN([[0,1], [0,1]],[0,2*PI]);
+var mapping = function (v) { return [SIN(v[0]), COS(v[1]), 0]; };
+//var model = MAP(mapping)(domain);
+//DRAW(model);
+var c = MAP(mapping)(domain);
+//c = CIRCLE()();
+ct = T([0,1,2])([1,2,3])(c)
+cr = R([0,2])([PI/2])(c)
+cc = T([0,1,2])([1,2,3])(cr)
+c0 = T([0,1,2])([0,0,0])(cr) // Bug
+cs = S([0,1,2])([1,1,1])(cr) // Bug
+DRAW(cr)
+DRAW(c0)
+
+
+function myCircle(radius, domain)
+{
+	var r = radius || 1;
+	var d = domain || DOMAIN([[0,2*PI]])([32]);
+	var mapping = function (v) { return [r*SIN(v[0]), r*COS(v[0]), 0]; };
+	return MAP(mapping)(d);
+}
+c = myCircle();
+ct = T([0,1,2])([1,2,3])(c)
+cr = R([0,2])([PI/2])(c)
+cc = T([0,1,2])([1,2,3])(cr)
+c0 = T([0,1,2])([0,0,0])(cr)
+cs = S([0,1,2])([1,1,1])(cr)
+DRAW(cr)
+DRAW(c0)
+
+*/
