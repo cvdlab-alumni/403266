@@ -178,6 +178,12 @@ function BuildStabilizers()
 	}
 }
 
+// http://www.sean.co.uk/a/webdesign/javascriptdelay.shtm
+function pausecomp(ms) {
+	ms += new Date().getTime();
+	while (new Date() < ms){}
+} 
+
 function BuildAirStrip()
 {
 	
@@ -187,11 +193,11 @@ function BuildAirStrip()
                              COLOR([1,1,1])(T([0,1,2])([-25,-10,-2])(CUBOID([50,2,1]))),
                              COLOR([0,0,0])(T([0,1,2])([-25,-8,-2])(CUBOID([50,16,1])))]);
 
-var a = POLYLINE([[0],[4]]);
-var b = POLYLINE([[0],[1]]);
-var axb = COLOR([1,1,1])(PROD1x1([a,b]));
-
-var whitestrip = T([1,2])([-0.5, -0.99])(axb);
+	var a = POLYLINE([[0],[4]]);
+	var b = POLYLINE([[0],[1]]);
+	var axb = COLOR([1,1,1])(PROD1x1([a,b]));
+	
+	var whitestrip = T([1,2])([-0.5, -0.99])(axb);
 
 	var airstrip = STRUCT([ airstrip0, T([0])([-6*4])(whitestrip), T([0])([-6*3])(whitestrip),
 							T([0])([-6*2])(whitestrip), T([0])([-6*1])(whitestrip), whitestrip,
@@ -229,6 +235,23 @@ var whitestrip = T([1,2])([-0.5, -0.99])(axb);
 				var airstrip = BuildAirStrip();
 				
 				exports.airstrip = airstrip;
+
+
+				DRAW(airstrip);
+				
+				for (k=-4; k<=3; k++)
+				{
+					var c = T([0])([6*k])(coloredAircraft);
+					
+					DRAW(c);
+					if (k<3)
+					{
+						pausecomp(500);
+						CANCEL(c);
+					}
+				}
+				CANCEL(airstrip);
+					
 				
 				var scene = STRUCT([ coloredAircraft, airstrip ]);
 				
