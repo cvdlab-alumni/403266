@@ -8,32 +8,46 @@
 */
 
 (function (exports) {
-	var doShow = false; // developing...can bypass the show...
-	ctrl = p.controls.controls; // Undocumented p: used to control the camera...// ctrl.object.position.z
-
-  function ColorRGB(r,g,b,t) { t = t || 1; return new Array(r/0xFF,g/0xFF,b/0xFF, t); }
+	var doShow = true; // developing...can bypass the show...
+	var ctrl = null; // Used to control the camera...// ctrl.object.position
+	if (p && p.controls)
+	{
+		ctrl = p.controls.controls; // Undocumented p [exports.Plasm.plasm.Viewer]
+	}
 
 	var sf = 1; // Scale factor width and height
 	
-	var zBaseCupola = 0*sf; // Z of the base of the cupolas
+	var nRibs = 8; // Octagonal cupolas
+	var radiusMainCupola = 4;
+	var radiusMiniCupola = 2;
+	var zBaseMainCupola = 6*sf; // Z of the base of the main cupolas
+	var zBaseMiniCupola = 3*sf; // Z of the base of the mini cupolas
+	var cww=0.30 // Cupola wall's width
+	var typeMainCupola = 1; // Round Arch
+	var typeMiniCupola = 1; // Round Arch
+	var typeExpCupola = 3; // Very thin Lancet Arch
 
 	// rz's arrays instead of [X,Y,Z] have [Radius,Z] elements
-	var rzBrickHalfColRots = [[0,0], // [0,0] in order to have a closed object (at bottom).
- [200, 0], [200, 1], [160,30], [175,20], [175,400], [160,420], [200, 450], [160,480], [175,500], [175,860], [160,880], [200, 899], [200, 900], // Vertical part of cross of the cross of the BrickHalfCol.
- [0, 900] ]; // Closing the top of the BrickHalfCol
-	rzBrickHalfColRots.sizeXY = 1/200; // BrickHalfCol object sizeXY factor. Makes base into [X=1,Y=1].
-	rzBrickHalfColRots.sizeZ  = 1/900; // BrickHalfCol object sizeZ factor. Makes base into [Z=1].
-	var domainBrickHalfCol = DOMAIN([[0,1],[0,PI]])([rzBrickHalfColRots.length*2,35]);
+	var rzTopMiniCupolas = [[50,0], // [0,0] in order to have a closed object (at bottom).
+ 													[50,0], [100, 0], [100, 0], [110, 10], [ 120,30], [105,50], [50,75], [0,100]]; // Closing the top of the TopMiniCupolas
+	rzTopMiniCupolas.sizeXY = 1/100; // rzTopMiniCupolas object sizeXY factor. Makes base into [X=1,Y=1].
+	rzTopMiniCupolas.sizeZ  = 1/100; // rzTopMiniCupolas object sizeZ factor. Makes base into [Z=1].
+	var sizeTopMiniCupolas = [sf,sf];
+	var domainTopMiniCupolas = DOMAIN([[0,1],[0,PI*2]])([rzTopMiniCupolas.length,nRibs]);
 
+	// Colors definitions
+  function ColorRGB(r,g,b,t) { t = t || 1; return new Array(r/0xFF,g/0xFF,b/0xFF, t); }
  	var colorGlass = [0,1,1,0.4];
  	var colorBiancoCarrara = ColorRGB(0xF6,0xFA,0xE1);
  	var colorMintedMarble = ColorRGB(0xF1,0xFC,0xC0);
  	var colorYellowMarble = ColorRGB(0xEB,0xE8,0x2D);
  	var colorYellowMarbleExt = ColorRGB(0xDB,0xD8,0x1D);
+ 	var colorGold = ColorRGB(0xFF, 0xE5, 0x00);
 
 	// Each/some functions add their structures into the myModel array in order to "make a movie" of the building process 	
  	var myModel = new Array();
  	var myIdx=0;
+ 	var i;
 
   function BuildKnots(len, degree)
   {
@@ -146,10 +160,10 @@
 
 	var last_h_cupola=-1; // outside variable to know the high of the last built cupola (the real high)
 	var last_r_cupola=-1; // outside variable to know the last (minimal, at the top of the cupola) radius of the last built cupola
-	function BuildRibbedCupola(nRib, cRib, cupolaType, baseRadium, cww, percentage, argDomain, zBaseCupola)
+	function BuildRibbedCupola(nRibs, cRibs, cupolaType, baseRadium, cww, percentage, argDomain, zBaseCupola)
 	{ // Keep in mind that the base occupy a radium larger than baseRadium: baseRadium+5.5*cww/2 (at ribs...)
-		// INPUT nRib: Number of faces for cupola.
-		// INPUT cRib: Number of faces really built.
+		// INPUT nRibs: Number of faces for cupola.
+		// INPUT cRibs: Number of faces really built.
 		// INPUT cupolaType: Heigth factor for cupola: cupolaType==1 for Round Arch, cupolaType==2 for Equilateral Arch.
 		// INPUT baseRadium: Radium of the inscribed circle at the base of the cupola.
 		// INPUT cww: Cupola wall's width
@@ -158,70 +172,81 @@
 		// INPUT zBaseCupola: Elevation of the base of the cupola
 		// OUTPUT a ribbed cupola array of plasm model built by passed parameters, and two outside parameters (last_h_cupola and last_r_cupola)
 
-		nRib = nRib || 8; // default is eight faces
-		cRib = cRib || nRib; // by default complete cupola
-		cupolaType = cupolaType || 2; 
+		// Check inputs, and eventually set a default value.
+		nRibs = nRibs || 8; // default is eight faces
+		cRibs = cRibs || nRibs; // by default complete cupola
+		cupolaType = cupolaType || 1; 
 		baseRadium = baseRadium || 1;
-		cww = cww || 0.05;
-		percentage = percentage || 0.9;
+		cww = cww || 0.3;
+		percentage = percentage || 0.8;
 		argDomain = argDomain || 20;
-		var alfa = 2*PI/nRib;
-		var halfAlfa = alfa/2;
-		var domainCupola = DOMAIN([[0,1],[0,alfa]])([argDomain,1]); // In that way create one slice of an emisphere but cutted at the top (percentage), that goes from 0 to alfa degree
-		var hCupola = cupolaType*baseRadium;
+
+		var alfa = 2*PI/nRibs; // The angle that contains one slice of the cupola
+		var halfAlfa = alfa/2; // An half of the angle of a slice of the cupola
+		var domainCupola = DOMAIN([[0,1],[0,alfa]])([argDomain,1]); // Domain used to create one slice of an emisphere, the profile used (cpCupola) could be cutted at the top (depending by percentage), the slice goes from 0 to alfa degree
 		var angleType = Math.acos(1-1/cupolaType); // PI/2 for Round Arch, PI/3 for Equilateral Arch
+		var rCupola = baseRadium*(1 + cupolaType*(Math.cos(angleType*percentage) - 1)); // Simplified equation that calculate the radium at the cut of the top of the cupola surface (without ribs)
+		var hCupola = baseRadium*cupolaType*Math.sin(angleType*percentage);
 		var cpCupola = [[baseRadium,0,0],
 										[baseRadium*(1 + cupolaType*(Math.cos(angleType*percentage/2) - 1)),0,baseRadium*cupolaType*Math.sin(angleType*percentage/2)],
-										[baseRadium*(1 + cupolaType*(Math.cos(angleType*percentage) - 1)),0,baseRadium*cupolaType*Math.sin(angleType*percentage)]]; // Control points to create the (eventually cutted) emisphere.
+										[rCupola,0,hCupola]]; // Control points to create the (eventually cutted) emisphere.
+
+		last_h_cupola = zBaseCupola+baseRadium/4+cww + hCupola; // Value used outside this function too. Set the maximum Z reached by this building
+		last_r_cupola = rCupola + 5.5*cww/2; // Value used outside this function too. Set the radius at Z == last_h_cupola
 	
 		var profileCupola = CalcNUBS(cpCupola);
 		var mappingCupola = ROTATIONAL_SURFACE(profileCupola);
 
+		// Internal viewing part of the curved cupola slice
 		var cupola = T([0,1])([cww*Math.cos(halfAlfa),cww*Math.sin(halfAlfa)])(COLOR(colorYellowMarble)(MAP(mappingCupola)(domainCupola)));
-		//DRAW(cupola)
+		// External viewing part of the curved cupola slice
 		var cupolaExt = T([0,1])([cww*Math.cos(halfAlfa),cww*Math.sin(halfAlfa)])(COLOR(colorYellowMarbleExt)(cupola));
-		//DRAW(cupolaExt)
 		
+		// The ribs are created half at the left and half at the right of one cupola slice: in that manner it is possible to create a semi-cupola (PI degree).
+		// Calculate the profile of 
 		var profileCupolaRib0 = CalcNUBS(RemapAdd(cpCupola, [cww/2*Math.cos(halfAlfa),cww/2*Math.sin(halfAlfa),0]));
 		var profileCupolaRib1 = CalcNUBS(RemapAdd(cpCupola, [5*cww/2*Math.cos(halfAlfa),5*cww/2*Math.sin(halfAlfa),0]));
-//		var profileCupolaRib2 = CalcNUBS(RemapAdd(cpCupola, [5*cww/2*Math.cos(-halfAlfa),5*cww/2*Math.sin(-halfAlfa),0]));
-//		var profileCupolaRib3 = CalcNUBS(RemapAdd(cpCupola, [cww/2*Math.cos(-halfAlfa),cww/2*Math.sin(-halfAlfa),0]));
 		var profileCupolaRib2 = CalcNUBS(RemapAdd(cpCupola, [5.5*cww/2,0,0]));
 		var profileCupolaRib3 = CalcNUBS(RemapAdd(cpCupola, [cww/2,0,0]));
-		
-		var surfCupolaRib0 = [profileCupolaRib0, profileCupolaRib1];
-		var surfCupolaRib1 = [profileCupolaRib1, profileCupolaRib2];
-		var surfCupolaRib2 = [profileCupolaRib2, profileCupolaRib3];
-		var surfCupolaRib3 = [profileCupolaRib3, profileCupolaRib0];
-		
-		var domainRib = DOMAIN([[0,1],[0,1]])([20,1]);
-		var rib0 = MAP(BEZIER(S1)(surfCupolaRib0))(domainRib);
-		var rib1 = MAP(BEZIER(S1)(surfCupolaRib1))(domainRib);
-		var rib2 = MAP(BEZIER(S1)(surfCupolaRib2))(domainRib);
-		var rib3 = MAP(BEZIER(S1)(surfCupolaRib3))(domainRib);
-		var ribDx = STRUCT([ rib0, rib1, rib2, rib3 ]);
+
+		var domainRib = DOMAIN([[0,1],[0,1]])([argDomain,1]);
+		var rib0 = MAP(BEZIER(S1)([profileCupolaRib0, profileCupolaRib1]))(domainRib);
+		var rib1 = MAP(BEZIER(S1)([profileCupolaRib1, profileCupolaRib2]))(domainRib);
+		var rib2 = MAP(BEZIER(S1)([profileCupolaRib2, profileCupolaRib3]))(domainRib);
+		var rib3 = MAP(BEZIER(S1)([profileCupolaRib3, profileCupolaRib0]))(domainRib);
+		var ribDx = STRUCT([ rib0, rib1, rib3 ]); // rib2 must be only one...
 		var ribSx = R([0,1])([alfa])(S([1])([-1])(ribDx));
-		var rib = COLOR(colorBiancoCarrara)(STRUCT([ribDx, ribSx]));
+		var rib = COLOR(colorBiancoCarrara)(STRUCT([ribDx, rib2, ribSx]));
 		//DRAW(rib);
 
 		var cpBaseCupola = [[baseRadium+cww/2,0,0], [baseRadium+7*cww/2,0,0], [baseRadium+7*cww/2,0,0],
-										[baseRadium+7*cww/2,0,-baseRadium/10],[baseRadium+5*cww/2,0,-baseRadium/10],
-										[baseRadium+5*cww/2,0,-baseRadium/9],[baseRadium+6*cww/2,0,-baseRadium/9],
-										[baseRadium+6*cww/2,0,-baseRadium/10*2],[baseRadium+5*cww/2,0,-baseRadium/10*2],
-										[baseRadium+5*cww/2,0,-baseRadium/4],[baseRadium,0,-baseRadium/4],
-										[baseRadium,0,-baseRadium/4],[baseRadium+cww/2,0,0]];
+										[baseRadium+7*cww/2,0,-baseRadium/10],[baseRadium+6*cww/2,0,-baseRadium/10],
+										[baseRadium+6*cww/2,0,-baseRadium/9],[baseRadium+6.5*cww/2,0,-baseRadium/9],
+										[baseRadium+6.5*cww/2,0,-baseRadium/10*2],[baseRadium+6*cww/2,0,-baseRadium/10*2],
+										[baseRadium+6*cww/2,0,-baseRadium/4],[baseRadium+cww/2,0,-baseRadium/4],
+										[baseRadium+cww/2,0,-baseRadium/4],[baseRadium+cww/2,0,0]];
 	
 		var profileBaseCupola = CalcNUBS(cpBaseCupola);
 		var mappingBaseCupola = ROTATIONAL_SURFACE(profileBaseCupola);
 		var baseCupola = COLOR(colorBiancoCarrara)(MAP(mappingBaseCupola)(domainCupola));
 
+		var cpTopCupola = [	[rCupola,0,hCupola],
+												[last_r_cupola,0,hCupola], [last_r_cupola,0,hCupola],
+												[last_r_cupola,0,hCupola + cww],[last_r_cupola,0,hCupola + cww],
+												[rCupola,0,hCupola + cww],[rCupola,0,hCupola + cww],
+												[rCupola,0,hCupola]];
+	
+		var profileTopCupola = CalcNUBS(cpTopCupola);
+		var mappingTopCupola = ROTATIONAL_SURFACE(profileTopCupola);
+		var topCupola = COLOR(colorBiancoCarrara)(MAP(mappingTopCupola)(domainCupola));
+
 		var i=1;
 		var arrayCup = new Array();
-		arrayCup[0] = T([2])([zBaseCupola])(STRUCT([ baseCupola, cupola, cupolaExt, rib ]));
+		arrayCup[0] = T([2])([zBaseCupola+baseRadium/4])(STRUCT([ baseCupola, cupola, cupolaExt, rib , topCupola ]));
 	
-		if ((cRib & (cRib-1)) == 0) // Is power of two?
+		if ((cRibs & (cRibs-1)) == 0) // Is power of two?
 		{
-			while ((1<<i)<=cRib)
+			while ((1<<i)<=cRibs)
 			{
 				arrayCup[i] = STRUCT([ arrayCup[i-1], R([0,1])([alfa*(1<<(i-1))])(arrayCup[i-1]) ]);
 				i++;
@@ -229,38 +254,59 @@
 		}
 		else
 		{
-			for (;i<cRib; i++)
+			for (;i<cRibs; i++)
 			{
 				arrayCup[i] = R([0,1])([alfa*i])(arrayCup[0]);
 			}
 		}
-		last_h_cupola = zBaseCupola + cpCupola[cpCupola.length-1][2];
-		last_r_cupola = cpCupola[cpCupola.length-1][0];
 		return arrayCup;
 	}
-
-/*	
-	var cca = Math.cos(Math.asin(percentage));
-	var ccc = T([0,1,2])([sf*4, sf*4, brickHeight+cca*2])(S([0,1,2])([sf*4*Math.sqrt(2), sf*4*Math.sqrt(2), sf*4*Math.sqrt(2)])(MYCUBOID([cca,cca,cca])));
-	*/
 
 
 // for (i=0; i<63; i++) DRAW(T([2])([2*i])(R([0,1])([i*PI/32])(T([0,1])([-5,-5])(MYCUBOID([10,10,2])))));
 
+	var columnArray = new Array;
+	var columnRadius = radiusMainCupola + cww*1.5;
+	var nDivCol = 16;
+	
+	for (i=0; i<nDivCol; i++)
+		columnArray[i] = T([2])([zBaseMiniCupola/nDivCol*i])(R([0,1])([PI/nDivCol/2*i + PI/4])(
+				T([0,1])([-cww*1.5/2,-cww*1.5/2])(MYCUBOID([cww*1.5,cww*1.5,zBaseMiniCupola/nDivCol]))));
+	
+	columnArray.forEach( function (e) { 
+			myModel[myIdx++] = T([0])([columnRadius])(e); // Angle is 0...
+		} ); // traslate and push all elements of miniCupolaArray[] into myModel[]
 
-	var mainCupolaArray = BuildRibbedCupola(8, 8, 1, sf*4, 0.05, 0.8, 20, zBaseCupola);
+	var column = STRUCT(columnArray); // Create a one plasm model for column: the subsequent are inserted whole into myModel
+	
+	for (i=1;i<nRibs; i++) // First is already inserted into myModel
+	{
+		myModel[myIdx++] = T([0,1])([columnRadius*Math.cos(PI*2/nRibs*i), columnRadius*Math.sin(PI*2/nRibs*i)])(R([0,1])([PI*2/nRibs*i])(column));
+	}
+
+	var mainCupolaArray = BuildRibbedCupola(nRibs, nRibs, typeMainCupola, sf*radiusMainCupola, sf*cww, 0.8, 20, zBaseMainCupola);
 	
 	mainCupolaArray.forEach( function (e) { myModel[myIdx++] = e } ); // push all elements of mainCupolaArray[] into myModel[]
+		
+//	var hMainCupola = last_h_cupola;
 	
-	
-	var hMainCupola = last_h_cupola;
-	
-//	myModel[myIdx++] = T([2])([hMainCupola])(COLOR(colorGlass)(MYCUBOID([3,3,3])))
-//	myModel[myIdx++] = T([0,1,2])([ -sf*2,-sf*2,sf*4 /*Math.sin(PI/3)*2*/])(COLOR([1,0,0,0.3])(MYCUBOID([3,3,3])))
-	
-	var miniCupolaArray = BuildRibbedCupola(8, 8, 1, sf*2, 0.05, 0.8, 20, zBaseCupola);
-	var miniCupolaDispose = 5;
+	var expCupolaArray = BuildRibbedCupola(nRibs*2, nRibs*2, typeExpCupola, last_r_cupola - 5.5/2*sf*cww * 0.92, sf*cww/2, 1, 10, last_h_cupola);
+	expCupolaArray.forEach( function (e) { myModel[myIdx++] = e } ); // push all elements of expCupolaArray[] into myModel[]
 
+	var crossBase = COLOR(colorGlass)(T([0,1,2])([-0.5, -0.5, 1])(MYCUBOID([1,1,4])));
+	var crossCube = COLOR(colorGlass)(T([0,1,2])([-0.5, -0.5, 5])(MYCUBOID([1,1,1])));
+	var cross = STRUCT([ crossBase, crossCube, T([0])([1])(crossCube), T([0])([-1])(crossCube), T([2])([1])(crossCube) ]);
+	var crossBase = COLOR(colorGold)(STRUCT([	T([0,1])([-1.5, -1.5])(CUBOID([3,3,1])), T([0,1,2])([-1.5, -1.5, 1])(CUBOID([3,1,2])),
+				T([0,1,2])([-1.5, 0.5, 1])(CUBOID([3,1,2])),	T([0,1,2])([-1.5, -0.5, 1])(CUBOID([1,1,2])),	T([0,1,2])([0.5, -0.5, 1])(CUBOID([1,1,2])) ]) );
+
+	myModel[myIdx++] = T([2])([last_h_cupola])(S([0,1,2])([sf*0.1, sf*0.1, sf*0.1])(STRUCT([ crossBase, cross ])));
+
+	var miniTopCupolas = Build3DSurfaceFrom2DCurve(rzTopMiniCupolas,sizeTopMiniCupolas,domainTopMiniCupolas);
+	
+	var miniCupolaArray = BuildRibbedCupola(nRibs, nRibs, typeMiniCupola, sf*radiusMiniCupola, sf*cww, 0.8, 20, zBaseMiniCupola);
+	var miniCupolaDispose = 6;
+
+	miniCupolaArray.push(COLOR(colorGold)(T([2])([last_h_cupola])(miniTopCupolas))); // Top for mini cupolas
 	miniCupolaArray.forEach( function (e) { 
 			myModel[myIdx++] = T([0,1])([-sf*miniCupolaDispose,-sf*miniCupolaDispose])(R([0,1])([PI])(e));
 		} ); // roto-traslate and push all elements of miniCupolaArray[] into myModel[]
@@ -273,14 +319,16 @@
 //	myModel[myIdx++] = T([0,1,2])([ sf*miniCupolaDispose, sf*miniCupolaDispose,last_h_cupola])(COLOR(colorGlass)(MYCUBOID([2,2,2])))
 //	myModel[myIdx++] = T([0,1,2])([ sf*(miniCupolaDispose-1), sf*(miniCupolaDispose-1),sf*2])(COLOR([1,0,0,0.3])(MYCUBOID([2,2,2])))
 
-
 	var showIdx = -1;
 	var drawModel = new Array();
 	
-	for (i = 0; i<myIdx; i++)
+	if (doShow)
 	{
-		drawModel[i] = DRAW( myModel[i] );
-		HIDE( drawModel[i] );
+		for (i = 0; i<myIdx; i++)
+		{
+			drawModel[i] = DRAW( myModel[i] );
+			HIDE( drawModel[i] );
+		}
 	}
 
 function doDeClock(time)
