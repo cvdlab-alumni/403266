@@ -8,7 +8,8 @@
 */
 
 (function (exports) {
-	var doShow = false; // developing...can bypass the show...
+	var doShow = !false; // developing...can bypass the show...
+	var simplify= !false; // Simplify geometry!
 	var ctrl = null; // Used to control the camera...// ctrl.object.position
 	if (p && p.controls)
 	{
@@ -16,13 +17,13 @@
 	}
 
 	// Global parameters definition: determine the shape and the size of the buildings
-	var sf = 1; // Scale factor width and height
+	var sf = 1; // Scale factor
 	var nRibs = 8; // Octagonal cupolas
 	var radiusMainCupola = 4*sf;
 	var radiusMiniCupola = 1*sf;
-	var miniCupolaDispose = radiusMainCupola + radiusMiniCupola;
+	var miniCupolaDispose = radiusMainCupola + radiusMiniCupola; // Represent the length of the to catetis distance from center multiplied by sin(PI/4)
 	var cww=0.30*sf; // Cupola wall's width
-	var baseStepsRadius = miniCupolaDispose + radiusMiniCupola*2;
+	var baseStepsRadius = radiusMainCupola*(3+Math.sqrt(2))/2 + radiusMiniCupola;
 	var baseStepsWidth = cww/2;
 	var baseStepsSlices = 32;
 	var zBaseCupola = 3*sf; // Z of the base of the cupolas
@@ -31,12 +32,12 @@
 	var typeMainCupola = 1; // Round Arch
 	var typeMiniCupola = 1; // Round Arch
 	var typeExpCupola = 3; // Very thin Lancet Arch
-	var columnRadius = radiusMainCupola + cww;
-	var nDivCol = (1 << 5); // Must be a power of two (to speed up...)
-  var floorProfileLength = radiusMainCupola;
+	var columnRadius = (miniCupolaDispose/Math.sin(PI/4) - radiusMiniCupola - cww/2); // radiusMainCupola + cww*1.1;
+	var nDivCol = (1 << (simplify?3:4)); // Must be a power of two (to speed up...)
+  var floorProfileLength = radiusMainCupola; // *(3+Math.sqrt(2))/2
   var floorProfileScale = 0.8;
   var hFloor1 = cww;
-  var hColumnBrick = (zBaseCupola-hFloor1)/nDivCol; // Height of a brick of the column
+  var hColumnBrick = (zBaseCupola)/nDivCol; // Height of a brick of the column
 //  var hColumnBrick = (zBaseCupola + hWallMainCupola)/nDivCol; // Height of a brick of the column
 
 	// rz's arrays instead of [X,Y,Z] have [Radius,Z] elements
@@ -443,14 +444,24 @@
 											[ lx, ly,-height/2],
 											[ lx, ly,height/2],
 											[ lx,-ly,height/2]];
-		var pp1 = RemapScale(pIntFace, [1, par0, par0]);
-		var pp2 = RemapAdd(RemapScale(pp1,  [1, par0, par0]), [ par1, 0, 0]);
-		var pp3 = RemapScale(pIntFace, [par2, par2, 1]);
-		var pp4 = RemapScale(pp3,           [1, par0, par0]);
-		var pp5 = RemapAdd(RemapScale(pp4,  [1, par0, par0]), [-par1, 0, 0]);
+
+		if (simplify)
+		{
+			var pp3 = RemapScale(pIntFace, [par2, par2, 1]);
 		
-	//	return T([2])([height/2])(R([0,1])([2*PI/nRibs/2])(FillPolys([pp2, pp1, pIntFace, pp3, pp4, pp5])));
-		return T([2])([height/2])(FillPolys([pp2, pp1, pIntFace, pp3, pp4, pp5]));
+			return T([2])([height/2])(FillPolys([pIntFace, pp3]));
+		}
+		else
+		{
+			var pp1 = RemapScale(pIntFace, [1, par0, par0]);
+			var pp2 = RemapAdd(RemapScale(pp1,  [1, par0, par0]), [ par1, 0, 0]);
+			var pp3 = RemapScale(pIntFace, [par2, par2, 1]);
+			var pp4 = RemapScale(pp3,           [1, par0, par0]);
+			var pp5 = RemapAdd(RemapScale(pp4,  [1, par0, par0]), [-par1, 0, 0]);
+		
+			//	return T([2])([height/2])(R([0,1])([2*PI/nRibs/2])(FillPolys([pp2, pp1, pIntFace, pp3, pp4, pp5])));
+			return T([2])([height/2])(FillPolys([pp2, pp1, pIntFace, pp3, pp4, pp5]));
+		}
 	}
 
 	/*
@@ -466,10 +477,12 @@
 
 	// The "decorative" columns under main cupola
 	var columnArray = new Array;
+	
+	var columnBaseAngle = 0; // PI/4
 
   if ((nDivCol & (nDivCol-1)) == 0)  // Is a power of two?
   { // logaritmic...
-		columnArray[0] = COLOR(colorWhiteMarble)(R([0,1])([PI/4])(T([0,1])([-cww*1.5/2,-cww*1.5/2])(MYCUBOID([cww*1.5,cww*1.5,hColumnBrick]))));
+		columnArray[0] = COLOR(colorWhiteMarble)(R([0,1])([columnBaseAngle])(T([0,1])([-cww*1.5/2,-cww*1.5/2])(MYCUBOID([cww*1.5,cww*1.5,hColumnBrick]))));
 		i = 1;
 		while ((1<<i)<=nDivCol)
 		{
@@ -480,17 +493,26 @@
   else
   { // linear...
 		for (i=0; i<nDivCol; i++)
-			columnArray[i] = T([2])([hColumnBrick*i])(R([0,1])([PI/nDivCol/2*i + PI/4])(
+			columnArray[i] = T([2])([hColumnBrick*i])(R([0,1])([PI/nDivCol/2*i + columnBaseAngle])(
 					T([0,1])([-cww*1.5/2,-cww*1.5/2])(MYCUBOID([cww*1.5,cww*1.5,hColumnBrick]))));
 	}
 	var column = STRUCT(columnArray); // Create a one plasm model for column: the subsequent are inserted whole into myModel
 
 	//	Walls
-
   var floorProfileInternal = (1-floorProfileScale)*floorProfileLength;
 
+	/*
+	** pe1..pe4 is the external polygon
+	** pi1..pi4 is the internal polygon
+	** pe1h is the (completed) external polygon elevated by Z=hFloor1
+	** pi1h is the (completed) internal polygon elevated by Z=hFloor1
+	*/
   var pe1 = GetFloorProfile(floorProfileLength);
   var pi1 = RemapAdd(pe1, [-floorProfileInternal,-floorProfileInternal,0]);
+  var internalOffsetX = pi1[1][0];
+  var internalOffsetY = -pi1[1][1];
+  var extentY = 2*pi1[1][1];
+  var extentX = ((pi1[0][0]-pi1[1][0]) -pi1[0][1]*2);
 
   var pe2 = RemapScale(pe1, [-1,1,1]);
   var pi2 = RemapScale(pi1, [-1,1,1]);
@@ -516,9 +538,31 @@
   var pe1h = RemapAdd(pe1, [0,0,hFloor1]);
   var pi1h = RemapAdd(pi1, [0,0,hFloor1]);
 
+	var closeRoof1 = T([0,1])([internalOffsetX, internalOffsetY])
+										(STRUCT([ CUBOID([extentX, extentY, hFloor1]),
+															T([0])([extentX])(CUBOID([extentY/6, extentY/6, hFloor1])),
+															T([0,1])([extentX,extentY*5/6])(CUBOID([extentY/6, extentY/6, hFloor1])) ]) );
+	
   // Cannot use FillPolys() because there is the hole in the middle!
-  var floor1Base = COLOR(colorWhiteMarble)( STRUCT([	FillTwoPolygons(pi1, pi1h), FillTwoPolygons(pi1h, pe1h), 
-														FillTwoPolygons(pe1h, pe1), FillTwoPolygons(pe1, pi1) ]) );
+  var floor1Base = COLOR(colorWhiteMarble)(
+  										STRUCT([	FillTwoPolygons(pi1, pi1h), FillTwoPolygons(pi1h, pe1h), 
+																FillTwoPolygons(pe1h, pe1), FillTwoPolygons(pe1, pi1),
+																// Insert some structures to fill the roof
+																 closeRoof1,
+																 R([0,1])([PI/2])(closeRoof1),
+																 R([0,1])([PI])(closeRoof1),
+																 R([0,1])([3*PI/2])(closeRoof1) ]) );
+
+	// Create the base walls
+	var baseWalls = null;
+	if (simplify)
+	{
+		//Just extend the roof...
+		baseWalls = T([2])([(zBaseCupola-hFloor1)/2])(S([2])([(zBaseCupola-hFloor1)/hFloor1])(T([2])([-hFloor1/2])(floor1Base)));
+	}
+	else
+	{ // TODO
+	}
 
 	// The main cupola
 	var mainCupolaArray = BuildRibbedCupola(nRibs, nRibs, typeMainCupola, radiusMainCupola, cww, 0.8, 20, zBaseCupola + hWallMainCupola);
@@ -562,10 +606,8 @@
 	** Phase 2. Insert into plasm model. Scale and place each structure.
 	*/
 
-if (1)
-{
 	// Insert steps
-	if (doShow)
+	//if (doShow)
 	{ // For debugging reason insert the steps only in show mode (final mode!)
 		myModel[myIdx++] = COLOR(colorMintedMarble)(steps);
 	}
@@ -587,28 +629,26 @@ if (1)
 																(R([0,1])([PI*2/nCols*i+angleFirstColumn])(column));
 	}
 
-	for (i=0;i<nCols; i++) // mini cupola columns
+/*	for (i=0;i<nCols; i++) // mini cupola columns
 	{
-		myModel[myIdx++] = T([0,1])	([	(miniCupolaDispose - radiusMiniCupola)*Math.cos(PI*2/nCols*i+angleFirstColumn), 
-																		(miniCupolaDispose - radiusMiniCupola)*Math.sin(PI*2/nCols*i+angleFirstColumn)])
+		myModel[myIdx++] = T([0,1])	([	(miniCupolaDispose/Math.sin(PI/4) - radiusMiniCupola)*Math.cos(PI*2/nCols*i+angleFirstColumn), 
+																		(miniCupolaDispose/Math.sin(PI/4) - radiusMiniCupola)*Math.sin(PI*2/nCols*i+angleFirstColumn)])
 																(R([0,1])([PI*2/nCols*i+angleFirstColumn])(column));
-	}
+	}*/
 
 	// Insert base wall // TODO
+	if (baseWalls)
+		myModel[myIdx++] = R([0,1])([PI/4])(baseWalls);
 
 	// Insert floor 1 base
 	myModel[myIdx++] = T([2])([zBaseCupola-hFloor1])(R([0,1])([PI/4])(floor1Base));
-}	
 	// Wall of main cupola
 	wallMainCupolaArray.forEach( function (e) { myModel[myIdx++] = T([2])([zBaseCupola])(e) } ); // push all elements of wallMainCupolaArray[] into myModel[]
-
 	// Wall of mini cupola
 	wallMiniCupolaArray.forEach( function (e) { 
 			myModel[myIdx++] = T([0,1,2])([-miniCupolaDispose,-miniCupolaDispose, zBaseCupola])(R([0,1])([PI+halfAlfaCupola])(e));
 		} ); // roto-traslate and push all elements of miniCupolaArray[] into myModel[]
 
-if (1)
-{
 	// Insert all parts of first mini cupolas
 	miniCupolaArray.forEach( function (e) { 
 			myModel[myIdx++] = T([0,1])([-miniCupolaDispose,-miniCupolaDispose])(R([0,1])([PI+halfAlfaCupola])(e));
@@ -627,7 +667,7 @@ if (1)
 
 	// Insert the cross on top of main cupola
 	myModel[myIdx++] = T([2])([hExpCupola])(S([0,1,2])([sf*0.1, sf*0.1, sf*0.1])(STRUCT([ crossBase, cross ])));
-}
+
 	/*
 	** Phase 3. Show the result
 	*/
@@ -704,9 +744,12 @@ function doClock(time)
 	if (ctrl) ctrl.viewAll();
 
 	exports.m =  model;
-	exports.doClock =  doClock; // Run after that this function will exit
-	exports.doDeClock =  doDeClock; // Run after that this function will exit
-	exports.time =  time; // Used after that this function will exit
+	if (doShow)
+	{
+		exports.doClock =  doClock; // Run after that this function will exit
+		exports.doDeClock =  doDeClock; // Run after that this function will exit
+		exports.time =  time; // Used after that this function will exit
+	}
 	exports.ctrl =  ctrl; // Used after that this function will exit
 	exports.showIdx =  showIdx; // DEBUG
 
