@@ -561,7 +561,9 @@
 		baseWalls = T([2])([(zBaseCupola-hFloor1)/2])(S([2])([(zBaseCupola-hFloor1)/hFloor1])(T([2])([-hFloor1/2])(floor1Base)));
 	}
 	else
-	{ // TODO
+	{ // TODO: DO THE SAME OF SIMPLIFIED...
+		//Just extend the roof...
+		baseWalls = T([2])([(zBaseCupola-hFloor1)/2])(S([2])([(zBaseCupola-hFloor1)/hFloor1])(T([2])([-hFloor1/2])(floor1Base)));
 	}
 
 	// The main cupola
