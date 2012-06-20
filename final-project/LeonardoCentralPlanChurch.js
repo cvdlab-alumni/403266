@@ -150,13 +150,6 @@
 		return cuboid;
 	}
 	
-	function MYCYLINDER(dims, slices)
-	{
-		var c = CYL_SURFACE(dims)([slices,1]);
-		var d = DISK(dims[0])([slices,1]); // DISK()() HAVE SOME PROBLEM IN 3D!!!
-		return STRUCT([ c, d, T([2])([dims[1]])(d) ]);
-	}
-
 	/* Build3DSurfaceFrom2DCurve() use rz to create one NUBS along Z axis that is
 	** mapped over domain2.
 	*/
@@ -180,91 +173,109 @@
 		return mrsd;
 	}
 
-	/* FillPoly() combines a sequence of polygons two by two: 
+	/* FillTwoPolygons()
+	** Creates an edge between the nth vertex in the first and the nth vertex in the second polygon,
+	** and then fills these newly created faces.
+	*/
+	function FillTwoPolygons(p1,p2)
+	{
+		var n12 = new Array();
+		var b12 = new Array();
+		var domain = DOMAIN([[0,1],[0,1]])([1,1]);
+
+		if (p1.length>=p2.length) // Work with heterogeneous polygons
+		{
+			p1.forEach( function (e,i) { 
+				if (p2.length>i)
+				{ // Create edge with the corresponding vertex of the other polygon
+					n12[i] = CalcNUBS([e, p2[i]], 1, S0);
+				}
+				else
+				{ // Create edge always with last vertex of the other polygon
+					n12[i] = CalcNUBS([e, p2[p2.length-1]], 1, S0);
+				}
+			} );
+		}
+		else
+		{
+			p2.forEach( function (e,i) { 
+				if (p2.length>i)
+				{ // Create edge with the corresponding vertex of the other polygon
+					n12[i] = CalcNUBS([e, p1[i]], 1, S0);
+				}
+				else
+				{ // Create edge always with last vertex of the other polygon
+					n12[i] = CalcNUBS([e, p1[p1.length-1]], 1, S0);
+				}
+			} );
+		}
+
+		n12.forEach( function (e,i,arr) { 
+			b12[i] = MAP(BEZIER(S1)([e,arr[(i+1) % arr.length]]))(domain);
+		} );
+		
+		return STRUCT(b12);
+	}
+
+	/* FillPolygon() creates an average point by the points of polygon and then 
+	** creates an edge between this average point and all vertexes of the polygon,
+	** and then fills these newly created faces.
+	*/
+	function FillPolygon(p)
+	{
+		/* Creates a polygon with the same number of vertices of the polygon p and 
+		** in which all the vertices are coincident in the average of the vertices
+		** of the polygon p. And then use FillTwoPolygons() to fill the polygon.
+		*/
+		if (p)
+		{
+			var avgPolygon = p.slice(0);
+			var avgPoint = p[0].slice(0); // Get First vertex
+	
+			avgPoint.forEach( function (e,i,arr) { arr[i] = 0; } ); // Prepare average on points of the polygon p
+			avgPolygon.forEach( function (e,i,arr) {  // For each point of the polygon p
+				e.forEach( function (c,dim) { avgPoint[dim] += c/arr.length; } ); // Update the relative coordinate for each component of each point.
+			} );
+			avgPolygon.forEach( function (e,i,arr) { arr[i] = avgPoint;	} ); // Set the new polygon as sequence of the same point (avgPoint).
+	
+			return FillTwoPolygons( avgPolygon, p );
+		}
+		else
+			return null;
+	}
+
+		
+	/* FillPolys() combines a sequence of polygons two by two: 
 	** creates an edge between the nth vertex in the first and the nth vertex in the second polygon,
 	** and then fills these newly created faces. Furthermore, also fills the first and the last polygon.
 	*/
-	function FillPoly(fp)
+	function FillPolys(fp)
 	{ 
-		// INPUT fp: Array of poligons. // Points of each poly have to be right-handed respect to its normal
+		// INPUT fp: Array of polygons. // Points of each polygon have to be right-handed respect to its normal
 		// OUTPUT plasm model
 
-		var domain = DOMAIN([[0,1],[0,1]])([1,1]);
-		fp = fp ||	[ [[1,1,1], [2,1,1], [2,2,1], [1,2,1]],
+		fp = fp ||	[ [[1,1,1.8], [2,1,1.8], [2,2,1.8], [1,2,1.8]],
+									[[0.5,0.5,2], [2.5,0.5,2], [2.5,2.5,2], [0.5,2.5,2]],
 									[[0,0,2], [3,0,2], [3,3,2], [0,3,2]],
-									[[0,0,0], [3,0,0], [3,3,0], [0,3,0]]];
+									[[0,0,0], [3,0,0], [3,3,0], [0,3,0]],
+									[[0.5,0.5,0], [2.5,0.5,0], [2.5,2.5,0], [0.5,2.5,0]],
+									[[1,1,0.2], [2,1,0.2], [2,2,0.2], [1,2,0.2]]];
 
-		function FillTwoPoly(r1,r2)
+		if (fp && fp.length>=1)
 		{
-			var n12 = new Array();
-			var b12 = new Array();
-	
-			if (r1.length>=r2.length) // Work with heterogeneous polygons
-			{
-				r1.forEach( function (e,i) { 
-					if (r2.length>i)
-					{
-						n12[i] = CalcNUBS([e, r2[i]], 1, S0);
-					}
-					else
-					{
-						n12[i] = CalcNUBS([e, r2[r2.length-1]], 1, S0);
-					}
-				} );
-			}
-			else
-			{
-				r2.forEach( function (e,i) { 
-					if (r2.length>i)
-					{
-						n12[i] = CalcNUBS([e, r1[i]], 1, S0);
-					}
-					else
-					{
-						n12[i] = CalcNUBS([e, r1[r1.length-1]], 1, S0);
-					}
-				} );
-			}
-
-			n12.forEach( function (e,i,arr) { 
-				b12[i] = MAP(BEZIER(S1)([e,arr[(i+1) % arr.length]]))(domain);
-			} );
-			
-			return STRUCT(b12);
-		}
-		
-		if (fp && fp.length>1)
-		{
-			var newPolyFirst = fp[0].slice(0); // Create
-			var newPolyLast =  fp[fp.length-1].slice(0); // Create
-			var avgFirst = fp[0][0].slice(0);
-			var avgLast = fp[fp.length-1][0].slice(0);
-
-			// On first polygon calculate the average of vertex points and then join with FillTwoPoly
-			avgFirst.forEach( function (e,i,arr) { arr[i] = 0; } ); // Prepare avg on points of first poly
-			newPolyFirst.forEach( function (e,i,arr) {  // For each point of the first poly
-				e.forEach( function (el,idx) { avgFirst[idx] += el/arr.length; } ); // Update the relative coordinate for each component of each point.
-			} );
-			newPolyFirst.forEach( function (e,i,arr) { arr[i] = avgFirst;	} ); // Set all the new First poly a sequence of the same point (avg).
-
-			// Do the same of the first polygon on the last.
-			avgLast.forEach( function (e,i,arr) { arr[i] = 0; } );
-			newPolyLast.forEach( function (e,i,arr) { 
-				e.forEach( function (el,idx) { avgLast[idx] += el/arr.length; } );
-			} );
-			newPolyLast.forEach( function (e,i,arr) { arr[i] = avgLast;	} );
-
 			var surfArray = new Array;
 			var iSurf = 0;
 
 			// Calc each join between adiancent poly in fp[], included the two "added" new polygons for first (newPolyFirst) and for last (newPolyLast)
-			surfArray[iSurf++] = FillTwoPoly(newPolyFirst,fp[0]);
-			for (; iSurf+1<fp.length; iSurf++)
+			surfArray[iSurf++] = FillPolygon(fp[0]);
+			if (fp.length>1)
 			{
-				surfArray[iSurf] = FillTwoPoly(fp[iSurf],fp[iSurf+1]);
+				for (; iSurf<fp.length; iSurf++)
+				{
+					surfArray[iSurf] = FillTwoPolygons(fp[iSurf-1],fp[iSurf]);
+				}
+				surfArray[iSurf++] = FillPolygon(fp[fp.length-1]);
 			}
-			surfArray[iSurf++] = FillTwoPoly(fp[fp.length-1], newPolyLast);
-	
 			return STRUCT(surfArray);
 		}
 		else
@@ -382,16 +393,18 @@
 		return arrayCup;
 	}
 
-	var steps = Build3DSurfaceFrom2DCurve(rzSteps,sizeSteps,domainSteps);
-	myModel[myIdx++] = COLOR(colorMintedMarble)(steps);
-
-/* DOES NOT WORK!
-	for (i = 3; i>0; i--)
-	{
-		myModel[myIdx++] = T([2])([-baseStepsWidth*i])(MYCYLINDER([ baseStepsRadius+baseStepsWidth*i, baseStepsWidth ], baseStepsSlices));
-	}
+	/*
+	** For first create all structures, then insert into the model, then make a show viewing building steps
 	*/
 
+	/*
+	** Phase 1. Building of the structures
+	*/
+
+	// The base of all: the steps
+	var steps = Build3DSurfaceFrom2DCurve(rzSteps,sizeSteps,domainSteps);
+
+	// The "decorative" columns under main cupola
 	var columnArray = new Array;
 
   if ((nDivCol & (nDivCol-1)) == 0)  // Is a power of two?
@@ -410,56 +423,82 @@
 			columnArray[i] = T([2])([zBaseMiniCupola/nDivCol*i])(R([0,1])([PI/nDivCol/2*i + PI/4])(
 					T([0,1])([-cww*1.5/2,-cww*1.5/2])(MYCUBOID([cww*1.5,cww*1.5,zBaseMiniCupola/nDivCol]))));
 	}
-	
-	columnArray.forEach( function (e) { 
-			myModel[myIdx++] = T([0])([columnRadius])(e); // Angle is 0...
-		} ); // traslate and push all elements of miniCupolaArray[] into myModel[]
-
 	var column = STRUCT(columnArray); // Create a one plasm model for column: the subsequent are inserted whole into myModel
-	
-	for (i=1;i<nRibs; i++) // First is already inserted into myModel
-	{
-		myModel[myIdx++] = T([0,1])([columnRadius*Math.cos(PI*2/nRibs*i), columnRadius*Math.sin(PI*2/nRibs*i)])(R([0,1])([PI*2/nRibs*i])(column));
-	}
 
+	// The main cupola
 	var mainCupolaArray = BuildRibbedCupola(nRibs, nRibs, typeMainCupola, sf*radiusMainCupola, sf*cww, 0.8, 20, zBaseMainCupola);
+	var hMainCupola = last_h_cupola;
+	var rMainCupola = last_r_cupola;
 	
-	mainCupolaArray.forEach( function (e) { myModel[myIdx++] = e } ); // push all elements of mainCupolaArray[] into myModel[]
-		
-//	var hMainCupola = last_h_cupola;
-	
-	var expCupolaArray = BuildRibbedCupola(nRibs*2, nRibs*2, typeExpCupola, last_r_cupola - 5.5/2*sf*cww * 0.92, sf*cww/2, 1, 10, last_h_cupola);
-	expCupolaArray.forEach( function (e) { myModel[myIdx++] = e } ); // push all elements of expCupolaArray[] into myModel[]
+	// The cupola that is placed above main cupola	
+	var expCupolaArray = BuildRibbedCupola(nRibs*2, nRibs*2, typeExpCupola, rMainCupola - 5.5/2*sf*cww * 0.92, sf*cww/2, 1, 10, hMainCupola);
+	var hExpCupola = last_h_cupola;
+	var rExpCupola = last_r_cupola;
 
+	// The cross at the top of the main cupola
 	var crossBase = COLOR(colorGlass)(T([0,1,2])([-0.5, -0.5, 1])(MYCUBOID([1,1,4])));
 	var crossCube = COLOR(colorGlass)(T([0,1,2])([-0.5, -0.5, 5])(MYCUBOID([1,1,1])));
 	var cross = STRUCT([ crossBase, crossCube, T([0])([1])(crossCube), T([0])([-1])(crossCube), T([2])([1])(crossCube) ]);
 	var crossBase = COLOR(colorGold)(STRUCT([	T([0,1])([-1.5, -1.5])(CUBOID([3,3,1])), T([0,1,2])([-1.5, -1.5, 1])(CUBOID([3,1,2])),
 				T([0,1,2])([-1.5, 0.5, 1])(CUBOID([3,1,2])),	T([0,1,2])([-1.5, -0.5, 1])(CUBOID([1,1,2])),	T([0,1,2])([0.5, -0.5, 1])(CUBOID([1,1,2])) ]) );
 
-	myModel[myIdx++] = T([2])([last_h_cupola])(S([0,1,2])([sf*0.1, sf*0.1, sf*0.1])(STRUCT([ crossBase, cross ])));
-
-
-
-	var miniTopCupolas = Build3DSurfaceFrom2DCurve(rzTopMiniCupolas,sizeTopMiniCupolas,domainTopMiniCupolas);
-	
+	// The minor cupola that will be replicated
 	var miniCupolaArray = BuildRibbedCupola(nRibs, nRibs, typeMiniCupola, sf*radiusMiniCupola, sf*cww, 0.8, 20, zBaseMiniCupola);
+	var hMiniCupola = last_h_cupola;
+	var rMiniCupola = last_r_cupola;
+
+	// The top of mini cupola
+	var miniTopCupolas = Build3DSurfaceFrom2DCurve(rzTopMiniCupolas,sizeTopMiniCupolas,domainTopMiniCupolas);
+	miniCupolaArray.push(COLOR(colorGold)(T([2])([hMiniCupola])(miniTopCupolas))); // Insert Top for mini cupola at the end of miniCupolaArray
+
+	// Create a one plasm model for miniCupola: the subsequent are inserted whole into myModel
+	var miniCupola = STRUCT(miniCupolaArray); 
 	
 
 //	var faceWallMiniCupola	
 
-	miniCupolaArray.push(COLOR(colorGold)(T([2])([last_h_cupola])(miniTopCupolas))); // Top for mini cupolas
+
+
+	/*
+	** Phase 2. Insert into plasm model. Scale and place each structure.
+	*/
+
+	// Insert steps
+	myModel[myIdx++] = COLOR(colorMintedMarble)(steps);
+
+	// First column is inserted piece by piece for the show
+	columnArray.forEach( function (e) { 
+			myModel[myIdx++] = T([0])([columnRadius])(e); // Angle is 0...
+		} ); // traslate and push all elements of columnArray[] into myModel[]
+
+	// Insert all other columns
+	for (i=1;i<nRibs; i++) // First column is already inserted into myModel
+	{
+		myModel[myIdx++] = T([0,1])([columnRadius*Math.cos(PI*2/nRibs*i), columnRadius*Math.sin(PI*2/nRibs*i)])(R([0,1])([PI*2/nRibs*i])(column));
+	}
+
+	// Insert all parts of first mini cupolas
 	miniCupolaArray.forEach( function (e) { 
 			myModel[myIdx++] = T([0,1])([-sf*miniCupolaDispose,-sf*miniCupolaDispose])(R([0,1])([PI])(e));
 		} ); // roto-traslate and push all elements of miniCupolaArray[] into myModel[]
 
-	var miniCupola = STRUCT(miniCupolaArray); // Create a one plasm model for miniCupola: the subsequent are inserted whole into myModel
-//	myModel[myIdx++] = T([0,1])([ sf*miniCupolaDispose, sf*miniCupolaDispose])(miniCupola);
+	// Insert all other mini cupolas (one by one...)
 	myModel[myIdx++] = T([0,1])([-sf*miniCupolaDispose, sf*miniCupolaDispose])(R([0,1])([PI/2])(miniCupola));
 	myModel[myIdx++] = T([0,1])([sf*miniCupolaDispose,sf*miniCupolaDispose])(R([0,1])([PI/4])(miniCupola));
 	myModel[myIdx++] = T([0,1])([ sf*miniCupolaDispose,-sf*miniCupolaDispose])(R([0,1])([3*PI/2])(miniCupola));
-//	myModel[myIdx++] = T([0,1,2])([ sf*miniCupolaDispose, sf*miniCupolaDispose,last_h_cupola])(COLOR(colorGlass)(MYCUBOID([2,2,2])))
-//	myModel[myIdx++] = T([0,1,2])([ sf*(miniCupolaDispose-1), sf*(miniCupolaDispose-1),sf*2])(COLOR([1,0,0,0.3])(MYCUBOID([2,2,2])))
+
+	// Insert main cupola
+	mainCupolaArray.forEach( function (e) { myModel[myIdx++] = e } ); // push all elements of mainCupolaArray[] into myModel[]
+
+	// Insert expCupola
+	expCupolaArray.forEach( function (e) { myModel[myIdx++] = e } ); // push all elements of expCupolaArray[] into myModel[]
+
+	// Insert the cross on top of main cupola
+	myModel[myIdx++] = T([2])([hExpCupola])(S([0,1,2])([sf*0.1, sf*0.1, sf*0.1])(STRUCT([ crossBase, cross ])));
+
+	/*
+	** Phase 3. Show the result
+	*/
 
 	var showIdx = -1;
 	var drawModel = new Array();
