@@ -8,8 +8,8 @@
 */
 
 (function (exports) {
-	var doShow = !false; // developing...can bypass the show...
-	var simplify= !false; // Simplify geometry!
+	var doShow = false; // developing...can bypass the show...
+	var simplify= false; // Simplify geometry!
 	var ctrl = null; // Used to control the camera...// ctrl.object.position
 	if (p && p.controls)
 	{
@@ -546,8 +546,10 @@
   // Cannot use FillPolys() because there is the hole in the middle!
   var floor1Base = COLOR(colorWhiteMarble)(
   										STRUCT([	FillTwoPolygons(pi1, pi1h), FillTwoPolygons(pi1h, pe1h), 
-																FillTwoPolygons(pe1h, pe1), FillTwoPolygons(pe1, pi1),
-																// Insert some structures to fill the roof
+																FillTwoPolygons(pe1h, pe1), FillTwoPolygons(pe1, pi1) ]) );
+
+  var floorCloseRoof = COLOR(colorWhiteMarble)(
+  										STRUCT([	// Insert some structures to fill the roof
 																 closeRoof1,
 																 R([0,1])([PI/2])(closeRoof1),
 																 R([0,1])([PI])(closeRoof1),
@@ -643,7 +645,7 @@
 		myModel[myIdx++] = R([0,1])([PI/4])(baseWalls);
 
 	// Insert floor 1 base
-	myModel[myIdx++] = T([2])([zBaseCupola-hFloor1])(R([0,1])([PI/4])(floor1Base));
+	myModel[myIdx++] = T([2])([zBaseCupola-hFloor1])(R([0,1])([PI/4])(STRUCT([floor1Base, floorCloseRoof])));
 	// Wall of main cupola
 	wallMainCupolaArray.forEach( function (e) { myModel[myIdx++] = T([2])([zBaseCupola])(e) } ); // push all elements of wallMainCupolaArray[] into myModel[]
 	// Wall of mini cupola
