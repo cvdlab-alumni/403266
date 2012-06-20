@@ -8,24 +8,30 @@
 */
 
 (function (exports) {
-	var doShow = true; // developing...can bypass the show...
+	var doShow = !false; // developing...can bypass the show...
 	var ctrl = null; // Used to control the camera...// ctrl.object.position
 	if (p && p.controls)
 	{
 		ctrl = p.controls.controls; // Undocumented p [exports.Plasm.plasm.Viewer]
 	}
 
-	var sf = 1; // Scale factor width and height
-	
+	// Global parameters definition: determine the shape and the size of the buildings
+	var sf = 1; // Scale factor width and height	
 	var nRibs = 8; // Octagonal cupolas
 	var radiusMainCupola = 4;
 	var radiusMiniCupola = 2;
+	var miniCupolaDispose = 6;
+	var cww=0.30 // Cupola wall's width
+	var baseStepsRadius = miniCupolaDispose + radiusMiniCupola*2;
+	var baseStepsWidth = cww/2;
+	var baseStepsSlices = 32;
 	var zBaseMainCupola = 6*sf; // Z of the base of the main cupolas
 	var zBaseMiniCupola = 3*sf; // Z of the base of the mini cupolas
-	var cww=0.30 // Cupola wall's width
 	var typeMainCupola = 1; // Round Arch
 	var typeMiniCupola = 1; // Round Arch
 	var typeExpCupola = 3; // Very thin Lancet Arch
+	var columnRadius = radiusMainCupola + cww*1.5;
+	var nDivCol = (1 << 4); // Must be a power of two (to speed up...)
 
 	// rz's arrays instead of [X,Y,Z] have [Radius,Z] elements
 	var rzTopMiniCupolas = [[50,0], // [0,0] in order to have a closed object (at bottom).
@@ -34,6 +40,20 @@
 	rzTopMiniCupolas.sizeZ  = 1/100; // rzTopMiniCupolas object sizeZ factor. Makes base into [Z=1].
 	var sizeTopMiniCupolas = [sf,sf];
 	var domainTopMiniCupolas = DOMAIN([[0,1],[0,PI*2]])([rzTopMiniCupolas.length,nRibs]);
+
+	// rz's arrays instead of [X,Y,Z] have [Radius,Z] elements
+	var rzSteps = [	[0,0], // [0,0] in order to have a closed object (at the top).
+ 									[baseStepsRadius,0], [baseStepsRadius, 0],
+ 									[baseStepsRadius,-baseStepsWidth], [baseStepsRadius, -baseStepsWidth],
+ 									[baseStepsRadius+baseStepsWidth, -baseStepsWidth], [baseStepsRadius+baseStepsWidth, -baseStepsWidth],
+ 									[baseStepsRadius+baseStepsWidth, -baseStepsWidth*2], [baseStepsRadius+baseStepsWidth, -baseStepsWidth*2],
+ 									[baseStepsRadius+baseStepsWidth*2, -baseStepsWidth*2], [baseStepsRadius+baseStepsWidth*2, -baseStepsWidth*2],
+ 									[baseStepsRadius+baseStepsWidth*2, -baseStepsWidth*3], [baseStepsRadius+baseStepsWidth*2, -baseStepsWidth*3],
+ 									[0, -baseStepsWidth*3], [0, -baseStepsWidth*3]]; // Closing the bottom of the Steps
+	rzSteps.sizeXY = 1; // rzSteps object sizeXY factor. Makes base into [X=1,Y=1].
+	rzSteps.sizeZ  = 1; // rzSteps object sizeZ factor. Makes base into [Z=1].
+	var sizeSteps = [sf,sf];
+	var domainSteps = DOMAIN([[0,1],[0,PI*2]])([rzSteps.length,nRibs*4]);
 
 	// Colors definitions
   function ColorRGB(r,g,b,t) { t = t || 1; return new Array(r/0xFF,g/0xFF,b/0xFF, t); }
@@ -129,6 +149,13 @@
 		}
 		return cuboid;
 	}
+	
+	function MYCYLINDER(dims, slices)
+	{
+		var c = CYL_SURFACE(dims)([slices,1]);
+		var d = DISK(dims[0])([slices,1]); // DISK()() HAVE SOME PROBLEM IN 3D!!!
+		return STRUCT([ c, d, T([2])([dims[1]])(d) ]);
+	}
 
 	/* Build3DSurfaceFrom2DCurve() use rz to create one NUBS along Z axis that is
 	** mapped over domain2.
@@ -151,6 +178,99 @@
 		var mrsd = MAP(rs)(domain2);
 // console.log(ctrls);
 		return mrsd;
+	}
+
+	/* FillPoly() combines a sequence of polygons two by two: 
+	** creates an edge between the nth vertex in the first and the nth vertex in the second polygon,
+	** and then fills these newly created faces. Furthermore, also fills the first and the last polygon.
+	*/
+	function FillPoly(fp)
+	{ 
+		// INPUT fp: Array of poligons. // Points of each poly have to be right-handed respect to its normal
+		// OUTPUT plasm model
+
+		var domain = DOMAIN([[0,1],[0,1]])([1,1]);
+		fp = fp ||	[ [[1,1,1], [2,1,1], [2,2,1], [1,2,1]],
+									[[0,0,2], [3,0,2], [3,3,2], [0,3,2]],
+									[[0,0,0], [3,0,0], [3,3,0], [0,3,0]]];
+
+		function FillTwoPoly(r1,r2)
+		{
+			var n12 = new Array();
+			var b12 = new Array();
+	
+			if (r1.length>=r2.length) // Work with heterogeneous polygons
+			{
+				r1.forEach( function (e,i) { 
+					if (r2.length>i)
+					{
+						n12[i] = CalcNUBS([e, r2[i]], 1, S0);
+					}
+					else
+					{
+						n12[i] = CalcNUBS([e, r2[r2.length-1]], 1, S0);
+					}
+				} );
+			}
+			else
+			{
+				r2.forEach( function (e,i) { 
+					if (r2.length>i)
+					{
+						n12[i] = CalcNUBS([e, r1[i]], 1, S0);
+					}
+					else
+					{
+						n12[i] = CalcNUBS([e, r1[r1.length-1]], 1, S0);
+					}
+				} );
+			}
+
+			n12.forEach( function (e,i,arr) { 
+				b12[i] = MAP(BEZIER(S1)([e,arr[(i+1) % arr.length]]))(domain);
+			} );
+			
+			return STRUCT(b12);
+		}
+		
+		if (fp && fp.length>1)
+		{
+			var newPolyFirst = fp[0].slice(0); // Create
+			var newPolyLast =  fp[fp.length-1].slice(0); // Create
+			var avgFirst = fp[0][0].slice(0);
+			var avgLast = fp[fp.length-1][0].slice(0);
+
+			// On first polygon calculate the average of vertex points and then join with FillTwoPoly
+			avgFirst.forEach( function (e,i,arr) { arr[i] = 0; } ); // Prepare avg on points of first poly
+			newPolyFirst.forEach( function (e,i,arr) {  // For each point of the first poly
+				e.forEach( function (el,idx) { avgFirst[idx] += el/arr.length; } ); // Update the relative coordinate for each component of each point.
+			} );
+			newPolyFirst.forEach( function (e,i,arr) { arr[i] = avgFirst;	} ); // Set all the new First poly a sequence of the same point (avg).
+
+			// Do the same of the first polygon on the last.
+			avgLast.forEach( function (e,i,arr) { arr[i] = 0; } );
+			newPolyLast.forEach( function (e,i,arr) { 
+				e.forEach( function (el,idx) { avgLast[idx] += el/arr.length; } );
+			} );
+			newPolyLast.forEach( function (e,i,arr) { arr[i] = avgLast;	} );
+
+			var surfArray = new Array;
+			var iSurf = 0;
+
+			// Calc each join between adiancent poly in fp[], included the two "added" new polygons for first (newPolyFirst) and for last (newPolyLast)
+			surfArray[iSurf++] = FillTwoPoly(newPolyFirst,fp[0]);
+			for (; iSurf+1<fp.length; iSurf++)
+			{
+				surfArray[iSurf] = FillTwoPoly(fp[iSurf],fp[iSurf+1]);
+			}
+			surfArray[iSurf++] = FillTwoPoly(fp[fp.length-1], newPolyLast);
+	
+			return STRUCT(surfArray);
+		}
+		else
+		{
+			return null;
+		}
 	}
 
   function RemapAdd(cp, pos)
@@ -244,7 +364,7 @@
 		var arrayCup = new Array();
 		arrayCup[0] = T([2])([zBaseCupola+baseRadium/4])(STRUCT([ baseCupola, cupola, cupolaExt, rib , topCupola ]));
 	
-		if ((cRibs & (cRibs-1)) == 0) // Is power of two?
+		if ((cRibs & (cRibs-1)) == 0) // Is a power of two?
 		{
 			while ((1<<i)<=cRibs)
 			{
@@ -262,16 +382,34 @@
 		return arrayCup;
 	}
 
+	var steps = Build3DSurfaceFrom2DCurve(rzSteps,sizeSteps,domainSteps);
+	myModel[myIdx++] = COLOR(colorMintedMarble)(steps);
 
-// for (i=0; i<63; i++) DRAW(T([2])([2*i])(R([0,1])([i*PI/32])(T([0,1])([-5,-5])(MYCUBOID([10,10,2])))));
+/* DOES NOT WORK!
+	for (i = 3; i>0; i--)
+	{
+		myModel[myIdx++] = T([2])([-baseStepsWidth*i])(MYCYLINDER([ baseStepsRadius+baseStepsWidth*i, baseStepsWidth ], baseStepsSlices));
+	}
+	*/
 
 	var columnArray = new Array;
-	var columnRadius = radiusMainCupola + cww*1.5;
-	var nDivCol = 16;
-	
-	for (i=0; i<nDivCol; i++)
-		columnArray[i] = T([2])([zBaseMiniCupola/nDivCol*i])(R([0,1])([PI/nDivCol/2*i + PI/4])(
-				T([0,1])([-cww*1.5/2,-cww*1.5/2])(MYCUBOID([cww*1.5,cww*1.5,zBaseMiniCupola/nDivCol]))));
+
+  if ((nDivCol & (nDivCol-1)) == 0)  // Is a power of two?
+  { // logaritmic...
+		columnArray[0] = R([0,1])([PI/4])(T([0,1])([-cww*1.5/2,-cww*1.5/2])(MYCUBOID([cww*1.5,cww*1.5,zBaseMiniCupola/nDivCol])));
+		i = 1;
+		while ((1<<i)<=nDivCol)
+		{
+			columnArray[i] = STRUCT([ columnArray[i-1], T([2])([zBaseMiniCupola/nDivCol*(1<<(i-1))])(R([0,1])([PI/nDivCol/2*(1<<(i-1))])(columnArray[i-1])) ]);
+			i++;
+		}
+  }
+  else
+  { // linear...
+		for (i=0; i<nDivCol; i++)
+			columnArray[i] = T([2])([zBaseMiniCupola/nDivCol*i])(R([0,1])([PI/nDivCol/2*i + PI/4])(
+					T([0,1])([-cww*1.5/2,-cww*1.5/2])(MYCUBOID([cww*1.5,cww*1.5,zBaseMiniCupola/nDivCol]))));
+	}
 	
 	columnArray.forEach( function (e) { 
 			myModel[myIdx++] = T([0])([columnRadius])(e); // Angle is 0...
@@ -301,10 +439,14 @@
 
 	myModel[myIdx++] = T([2])([last_h_cupola])(S([0,1,2])([sf*0.1, sf*0.1, sf*0.1])(STRUCT([ crossBase, cross ])));
 
+
+
 	var miniTopCupolas = Build3DSurfaceFrom2DCurve(rzTopMiniCupolas,sizeTopMiniCupolas,domainTopMiniCupolas);
 	
 	var miniCupolaArray = BuildRibbedCupola(nRibs, nRibs, typeMiniCupola, sf*radiusMiniCupola, sf*cww, 0.8, 20, zBaseMiniCupola);
-	var miniCupolaDispose = 6;
+	
+
+//	var faceWallMiniCupola	
 
 	miniCupolaArray.push(COLOR(colorGold)(T([2])([last_h_cupola])(miniTopCupolas))); // Top for mini cupolas
 	miniCupolaArray.forEach( function (e) { 
