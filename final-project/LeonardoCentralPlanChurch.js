@@ -8,7 +8,7 @@
 */
 
 (function (exports) {
-	var doShow = !false; // developing...can bypass the show...
+	var doShow = false; // developing...can bypass the show...
 	var ctrl = null; // Used to control the camera...// ctrl.object.position
 	if (p && p.controls)
 	{
@@ -19,26 +19,32 @@
 	var sf = 1; // Scale factor width and height	
 	var nRibs = 8; // Octagonal cupolas
 	var radiusMainCupola = 4;
-	var radiusMiniCupola = 2;
-	var miniCupolaDispose = 6;
+	var radiusMiniCupola = 1;
+	var miniCupolaDispose = radiusMainCupola + radiusMiniCupola;
 	var cww=0.30 // Cupola wall's width
 	var baseStepsRadius = miniCupolaDispose + radiusMiniCupola*2;
 	var baseStepsWidth = cww/2;
 	var baseStepsSlices = 32;
 	var zBaseMainCupola = 6*sf; // Z of the base of the main cupolas
 	var zBaseMiniCupola = 3*sf; // Z of the base of the mini cupolas
+	var hWallMain = 3*sf;
 	var typeMainCupola = 1; // Round Arch
 	var typeMiniCupola = 1; // Round Arch
 	var typeExpCupola = 3; // Very thin Lancet Arch
 	var columnRadius = radiusMainCupola + cww*1.5;
-	var nDivCol = (1 << 4); // Must be a power of two (to speed up...)
+	var nDivCol = (1 << 5); // Must be a power of two (to speed up...)
+  var floorProfileLength = radiusMainCupola*sf;
+  var floorProfileScale = 0.8;
+  var hFloor1 = cww;
+//  var hColumnBrick = (zBaseMiniCupola-hFloor1)/nDivCol; // Height of a brick of the column
+  var hColumnBrick = (zBaseMainCupola)/nDivCol; // Height of a brick of the column
 
 	// rz's arrays instead of [X,Y,Z] have [Radius,Z] elements
 	var rzTopMiniCupolas = [[50,0], // [0,0] in order to have a closed object (at bottom).
  													[50,0], [100, 0], [100, 0], [110, 10], [ 120,30], [105,50], [50,75], [0,100]]; // Closing the top of the TopMiniCupolas
 	rzTopMiniCupolas.sizeXY = 1/100; // rzTopMiniCupolas object sizeXY factor. Makes base into [X=1,Y=1].
 	rzTopMiniCupolas.sizeZ  = 1/100; // rzTopMiniCupolas object sizeZ factor. Makes base into [Z=1].
-	var sizeTopMiniCupolas = [sf,sf];
+	var sizeTopMiniCupolas = [sf/2,sf/2];
 	var domainTopMiniCupolas = DOMAIN([[0,1],[0,PI*2]])([rzTopMiniCupolas.length,nRibs]);
 
 	// rz's arrays instead of [X,Y,Z] have [Radius,Z] elements
@@ -54,6 +60,7 @@
 	rzSteps.sizeZ  = 1; // rzSteps object sizeZ factor. Makes base into [Z=1].
 	var sizeSteps = [sf,sf];
 	var domainSteps = DOMAIN([[0,1],[0,PI*2]])([rzSteps.length,nRibs*4]);
+	var halfAlfaCupola = PI/nRibs; // The angle that contains one half of slice of the cupola
 
 	// Colors definitions
   function ColorRGB(r,g,b,t) { t = t || 1; return new Array(r/0xFF,g/0xFF,b/0xFF, t); }
@@ -63,11 +70,39 @@
  	var colorYellowMarble = ColorRGB(0xEB,0xE8,0x2D);
  	var colorYellowMarbleExt = ColorRGB(0xDB,0xD8,0x1D);
  	var colorGold = ColorRGB(0xFF, 0xE5, 0x00);
+ 	var colorWhiteMarble = ColorRGB(0xEE, 0xEA, 0xF7);
 
 	// Each/some functions add their structures into the myModel array in order to "make a movie" of the building process 	
  	var myModel = new Array();
  	var myIdx=0;
  	var i;
+
+	/* 
+	** Phase 0. Declaration of all functions
+	*/
+
+  function RemapAdd(cp, pos)
+  { // Remap adding on 3 element vector
+    return cp.map(function (p) {return [(p[0]+pos[0]), (p[1]+pos[1]), (p[2]+pos[2])]});
+  }
+
+  function RemapScale(cp, s)
+  { // Remap scaling on 3 element vector
+    return cp.map(function (p) {return [(p[0]*s[0]), (p[1]*s[1]), (p[2]*s[2])]});
+  }
+
+	// Return an array that contain a polygon used to build the first floor
+	function GetFloorProfile(fl)
+	{
+		var s2 = Math.sqrt(2)/2; // Half of square roots of 2
+		fl = fl || 1; // floor parameter length
+
+		return [[ (3/2+s2)*fl, fl/2,0],[ (1/2+s2)*fl, fl/2,0],[ fl/2, (1/2+s2)*fl,0],[ fl/2, (3/2+s2)*fl,0]]  // Only quadrant I
+/*			[-fl/2, (3/2+s2)*fl,0],[-fl/2, (1/2+s2)*fl,0],[-(1/2+s2)*fl, fl/2,0],[-(3/2+s2)*fl, fl/2,0],  // Quadrant II
+			[-(3/2+s2)*fl,-fl/2,0],[-(1/2+s2)*fl,-fl/2,0],[-fl/2,-(1/2+s2)*fl,0],[-fl/2,-(3/2+s2)*fl,0],  // Quadrant III
+			[ fl/2,-(3/2+s2)*fl,0],[ fl/2,-(1/2+s2)*fl,0],[ (1/2+s2)*fl,-fl/2,0],[ (3/2+s2)*fl,-fl/2,0]]; // Quadrant IV
+*/
+	}
 
   function BuildKnots(len, degree)
   {
@@ -284,11 +319,6 @@
 		}
 	}
 
-  function RemapAdd(cp, pos)
-  { // Remap a 3 element vector
-    return cp.map(function (p) {return [(p[0]+pos[0]), (p[1]+pos[1]), (p[2]+pos[2])]});
-  }
-
 	var last_h_cupola=-1; // outside variable to know the high of the last built cupola (the real high)
 	var last_r_cupola=-1; // outside variable to know the last (minimal, at the top of the cupola) radius of the last built cupola
 	function BuildRibbedCupola(nRibs, cRibs, cupolaType, baseRadium, cww, percentage, argDomain, zBaseCupola)
@@ -322,7 +352,8 @@
 										[baseRadium*(1 + cupolaType*(Math.cos(angleType*percentage/2) - 1)),0,baseRadium*cupolaType*Math.sin(angleType*percentage/2)],
 										[rCupola,0,hCupola]]; // Control points to create the (eventually cutted) emisphere.
 
-		last_h_cupola = zBaseCupola+baseRadium/4+cww + hCupola; // Value used outside this function too. Set the maximum Z reached by this building
+		var hTopCupola = cww/2;
+		last_h_cupola = zBaseCupola+baseRadium/4+hTopCupola + hCupola; // Value used outside this function too. Set the maximum Z reached by this building
 		last_r_cupola = rCupola + 5.5*cww/2; // Value used outside this function too. Set the radius at Z == last_h_cupola
 	
 		var profileCupola = CalcNUBS(cpCupola);
@@ -363,8 +394,8 @@
 
 		var cpTopCupola = [	[rCupola,0,hCupola],
 												[last_r_cupola,0,hCupola], [last_r_cupola,0,hCupola],
-												[last_r_cupola,0,hCupola + cww],[last_r_cupola,0,hCupola + cww],
-												[rCupola,0,hCupola + cww],[rCupola,0,hCupola + cww],
+												[last_r_cupola,0,hCupola + hTopCupola],[last_r_cupola,0,hCupola + hTopCupola],
+												[rCupola,0,hCupola + hTopCupola],[rCupola,0,hCupola + hTopCupola],
 												[rCupola,0,hCupola]];
 	
 		var profileTopCupola = CalcNUBS(cpTopCupola);
@@ -409,21 +440,60 @@
 
   if ((nDivCol & (nDivCol-1)) == 0)  // Is a power of two?
   { // logaritmic...
-		columnArray[0] = R([0,1])([PI/4])(T([0,1])([-cww*1.5/2,-cww*1.5/2])(MYCUBOID([cww*1.5,cww*1.5,zBaseMiniCupola/nDivCol])));
+		columnArray[0] = COLOR(colorWhiteMarble)(R([0,1])([PI/4])(T([0,1])([-cww*1.5/2,-cww*1.5/2])(MYCUBOID([cww*1.5,cww*1.5,hColumnBrick]))));
 		i = 1;
 		while ((1<<i)<=nDivCol)
 		{
-			columnArray[i] = STRUCT([ columnArray[i-1], T([2])([zBaseMiniCupola/nDivCol*(1<<(i-1))])(R([0,1])([PI/nDivCol/2*(1<<(i-1))])(columnArray[i-1])) ]);
+			columnArray[i] = COLOR(colorWhiteMarble)(STRUCT([ columnArray[i-1], T([2])([hColumnBrick*(1<<(i-1))])(R([0,1])([PI/nDivCol/2*(1<<(i-1))])(columnArray[i-1])) ]));
 			i++;
 		}
   }
   else
   { // linear...
 		for (i=0; i<nDivCol; i++)
-			columnArray[i] = T([2])([zBaseMiniCupola/nDivCol*i])(R([0,1])([PI/nDivCol/2*i + PI/4])(
-					T([0,1])([-cww*1.5/2,-cww*1.5/2])(MYCUBOID([cww*1.5,cww*1.5,zBaseMiniCupola/nDivCol]))));
+			columnArray[i] = T([2])([hColumnBrick*i])(R([0,1])([PI/nDivCol/2*i + PI/4])(
+					T([0,1])([-cww*1.5/2,-cww*1.5/2])(MYCUBOID([cww*1.5,cww*1.5,hColumnBrick]))));
 	}
 	var column = STRUCT(columnArray); // Create a one plasm model for column: the subsequent are inserted whole into myModel
+
+
+
+	//	Walls
+  var floorProfileInternal = (1-floorProfileScale)*floorProfileLength;
+
+  var pe1 = GetFloorProfile(floorProfileLength);
+  var pi1 = RemapAdd(pe1, [-floorProfileInternal,-floorProfileInternal,0]);
+
+  var pe2 = RemapScale(pe1, [-1,1,1]);
+  var pi2 = RemapScale(pi1, [-1,1,1]);
+  pe2.reverse(); // Reverse order, in that way the points respect the right hand rule.
+  pi2.reverse();
+
+  var pe3 = RemapScale(pe1, [-1,-1,1]);
+  var pi3 = RemapScale(pi1, [-1,-1,1]);
+
+  var pe4 = RemapScale(pe2, [-1,-1,1]);
+  var pi4 = RemapScale(pi2, [-1,-1,1]);
+  
+  pe2.forEach( function(e) { pe1.push(e) } );
+  pe3.forEach( function(e) { pe1.push(e) } );
+  pe4.forEach( function(e) { pe1.push(e) } );
+  // at this point pe1 contains all points of external perimeter
+
+  pi2.forEach( function(e) { pi1.push(e) } );
+  pi3.forEach( function(e) { pi1.push(e) } );
+  pi4.forEach( function(e) { pi1.push(e) } );
+  // at this point pi1 contains all points of internal perimeter
+  
+  var pe1h = RemapAdd(pe1, [0,0,hFloor1]);
+  var pi1h = RemapAdd(pi1, [0,0,hFloor1]);
+
+  // Cannot use FillPolys() because there is the hole in the middle!
+  var floor1Base = COLOR(colorWhiteMarble)( STRUCT([	FillTwoPolygons(pi1, pi1h), FillTwoPolygons(pi1h, pe1h), 
+														FillTwoPolygons(pe1h, pe1), FillTwoPolygons(pe1, pi1) ]) );
+
+	
+
 
 	// The main cupola
 	var mainCupolaArray = BuildRibbedCupola(nRibs, nRibs, typeMainCupola, sf*radiusMainCupola, sf*cww, 0.8, 20, zBaseMainCupola);
@@ -443,7 +513,7 @@
 				T([0,1,2])([-1.5, 0.5, 1])(CUBOID([3,1,2])),	T([0,1,2])([-1.5, -0.5, 1])(CUBOID([1,1,2])),	T([0,1,2])([0.5, -0.5, 1])(CUBOID([1,1,2])) ]) );
 
 	// The minor cupola that will be replicated
-	var miniCupolaArray = BuildRibbedCupola(nRibs, nRibs, typeMiniCupola, sf*radiusMiniCupola, sf*cww, 0.8, 20, zBaseMiniCupola);
+	var miniCupolaArray = BuildRibbedCupola(nRibs, nRibs, typeMiniCupola, sf*radiusMiniCupola, sf*cww*0.75, 0.8, 20, zBaseMiniCupola);
 	var hMiniCupola = last_h_cupola;
 	var rMiniCupola = last_r_cupola;
 
@@ -455,43 +525,52 @@
 	var miniCupola = STRUCT(miniCupolaArray); 
 	
 
-//	var faceWallMiniCupola	
-
-
 
 	/*
 	** Phase 2. Insert into plasm model. Scale and place each structure.
 	*/
 
 	// Insert steps
-	myModel[myIdx++] = COLOR(colorMintedMarble)(steps);
+	if (doShow)
+	{ // For debugging reason insert the steps only in show mode (final mode!)
+		myModel[myIdx++] = COLOR(colorMintedMarble)(steps);
+	}
 
 	// First column is inserted piece by piece for the show
+	var nCols = 4;
+	var angleFirstColumn = PI/4;
 	columnArray.forEach( function (e) { 
-			myModel[myIdx++] = T([0])([columnRadius])(e); // Angle is 0...
+			myModel[myIdx++] = T([0,1])	([	columnRadius*Math.cos(angleFirstColumn), 
+																			columnRadius*Math.sin(angleFirstColumn)])
+																	(R([0,1])([angleFirstColumn])(column));
 		} ); // traslate and push all elements of columnArray[] into myModel[]
 
 	// Insert all other columns
-	for (i=1;i<nRibs; i++) // First column is already inserted into myModel
+	for (i=1;i<nCols; i++) // First column is already inserted into myModel
 	{
-		myModel[myIdx++] = T([0,1])([columnRadius*Math.cos(PI*2/nRibs*i), columnRadius*Math.sin(PI*2/nRibs*i)])(R([0,1])([PI*2/nRibs*i])(column));
+		myModel[myIdx++] = T([0,1])	([	columnRadius*Math.cos(PI*2/nCols*i+angleFirstColumn), 
+																	columnRadius*Math.sin(PI*2/nCols*i+angleFirstColumn)])
+																(R([0,1])([PI*2/nCols*i+angleFirstColumn])(column));
 	}
+
+	// Insert floor 1 base
+	myModel[myIdx++] = T([2])([zBaseMiniCupola-hFloor1])(R([0,1])([PI/4])(floor1Base));
 
 	// Insert all parts of first mini cupolas
 	miniCupolaArray.forEach( function (e) { 
-			myModel[myIdx++] = T([0,1])([-sf*miniCupolaDispose,-sf*miniCupolaDispose])(R([0,1])([PI])(e));
+			myModel[myIdx++] = T([0,1])([-sf*miniCupolaDispose,-sf*miniCupolaDispose])(R([0,1])([PI+halfAlfaCupola])(e));
 		} ); // roto-traslate and push all elements of miniCupolaArray[] into myModel[]
 
 	// Insert all other mini cupolas (one by one...)
-	myModel[myIdx++] = T([0,1])([-sf*miniCupolaDispose, sf*miniCupolaDispose])(R([0,1])([PI/2])(miniCupola));
-	myModel[myIdx++] = T([0,1])([sf*miniCupolaDispose,sf*miniCupolaDispose])(R([0,1])([PI/4])(miniCupola));
-	myModel[myIdx++] = T([0,1])([ sf*miniCupolaDispose,-sf*miniCupolaDispose])(R([0,1])([3*PI/2])(miniCupola));
+	myModel[myIdx++] = T([0,1])([-sf*miniCupolaDispose, sf*miniCupolaDispose])(R([0,1])([PI/2+halfAlfaCupola])(miniCupola));
+	myModel[myIdx++] = T([0,1])([sf*miniCupolaDispose,sf*miniCupolaDispose])(R([0,1])([PI/4+halfAlfaCupola])(miniCupola));
+	myModel[myIdx++] = T([0,1])([ sf*miniCupolaDispose,-sf*miniCupolaDispose])(R([0,1])([3*PI/2+halfAlfaCupola])(miniCupola));
 
 	// Insert main cupola
-	mainCupolaArray.forEach( function (e) { myModel[myIdx++] = e } ); // push all elements of mainCupolaArray[] into myModel[]
+	mainCupolaArray.forEach( function (e) { myModel[myIdx++] = R([0,1])([halfAlfaCupola])(e) } ); // push all elements of mainCupolaArray[] into myModel[]
 
 	// Insert expCupola
-	expCupolaArray.forEach( function (e) { myModel[myIdx++] = e } ); // push all elements of expCupolaArray[] into myModel[]
+	expCupolaArray.forEach( function (e) { myModel[myIdx++] = R([0,1])([halfAlfaCupola])(e) } ); // push all elements of expCupolaArray[] into myModel[]
 
 	// Insert the cross on top of main cupola
 	myModel[myIdx++] = T([2])([hExpCupola])(S([0,1,2])([sf*0.1, sf*0.1, sf*0.1])(STRUCT([ crossBase, cross ])));
